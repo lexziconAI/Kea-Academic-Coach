@@ -644,38 +644,29 @@ server.listen(PORT, () => {
 
 📡 Endpoints:
    GET  /health     - Health check
-   GET  /v6         - V6 Streaming AEC (barge-in enabled!)
-   GET  /v5         - V5 Parallel Chunking
-   GET  /v4         - V4 Interruptible Voice
+   GET  /v7         - V7 Turn-Taking (Primary!)
+   GET  /v6         - V6 Streaming AEC (requires OpenAI)
+   GET  /v5         - V5 Parallel Chunking (requires OpenAI)
+   GET  /v4         - V4 Interruptible Voice (requires OpenAI)
    POST /api/coach  - Text coaching
-   WS   /relay-v6   - V6 WebSocket relay (streaming)
-   WS   /relay-v5   - V5 WebSocket relay
-   WS   /relay      - V4 WebSocket relay
-
-⚡ V6 Architecture (OpenAI Realtime-Style):
-   Continuous mic stream → Server-side Echo Detection
-                        → Server-side VAD (adaptive)
-                        → BARGE-IN detection!
-                        → Groq Whisper → Groq Llama 70B
-                        → Parallel Google Chirp TTS
-   
-✅ V6 Features:
-   - Continuous audio streaming (no client-side VAD wait)
-   - Fingerprint-based echo cancellation
-   - Real barge-in support (interrupt Kea mid-speech)
-   - Predictive interruption (soft/hard thresholds)
-   - ~400ms to first audio with barge-in!
+   WS   /relay-v7   - V7 WebSocket relay (Turn-Taking)
   `);
 
-  // Attach V4 WebSocket relay (interruptible chunked)
-  createRelayV4(server, sessions);
-  
-  // Attach V5 WebSocket relay (parallel chunking)
-  createRelayV5(server, '/relay-v5');
-  
-  // Attach V6 WebSocket relay (streaming AEC with barge-in)
-  createRelayV6(server, '/relay-v6');
-
-  // Attach V7 WebSocket relay (Turn-Taking / Sensory Gating)
+  // V7 is the primary - always attach it (uses Google + Groq, no OpenAI needed)
   createRelayV7(server, '/relay-v7', coachingContexts);
+  console.log('✅ V7 WebSocket relay attached (Turn-Taking / Sensory Gating)');
+
+  // Only attach V4/V5/V6 if OpenAI key is available (they require it)
+  if (OPENAI_API_KEY) {
+    createRelayV4(server, sessions);
+    console.log('✅ V4 WebSocket relay attached');
+    
+    createRelayV5(server, '/relay-v5');
+    console.log('✅ V5 WebSocket relay attached');
+    
+    createRelayV6(server, '/relay-v6');
+    console.log('✅ V6 WebSocket relay attached');
+  } else {
+    console.log('⚠️ V4/V5/V6 relays skipped (no OPENAI_API_KEY)');
+  }
 });
