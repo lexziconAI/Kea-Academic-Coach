@@ -39,13 +39,20 @@
 // ═══════════════════════════════════════════════════════════════════════════════════
 
 const Groq = require('groq-sdk');
-const textToSpeech = require('@google-cloud/text-to-speech');
-const speech = require('@google-cloud/speech');
 const WebSocket = require('ws');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { AntiHallucinationPipeline } = require('./kea_v7_anti_hallucination');
+
+// Lazy load Google Cloud clients to handle missing credentials gracefully
+let textToSpeech, speech;
+try {
+    textToSpeech = require('@google-cloud/text-to-speech');
+    speech = require('@google-cloud/speech');
+} catch (err) {
+    console.error('⚠️ Google Cloud SDK not available:', err.message);
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -204,8 +211,23 @@ class KeaV7Engine {
     constructor() {
         // Initialize APIs
         this.groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-        this.ttsClient = new textToSpeech.TextToSpeechClient();
-        this.sttClient = new speech.SpeechClient();
+        
+        // Initialize Google Cloud clients with error handling
+        if (textToSpeech && speech) {
+            try {
+                this.ttsClient = new textToSpeech.TextToSpeechClient();
+                this.sttClient = new speech.SpeechClient();
+                console.log('✅ Google Cloud clients initialized');
+            } catch (err) {
+                console.error('⚠️ Failed to initialize Google Cloud clients:', err.message);
+                this.ttsClient = null;
+                this.sttClient = null;
+            }
+        } else {
+            console.error('⚠️ Google Cloud SDK not loaded');
+            this.ttsClient = null;
+            this.sttClient = null;
+        }
         
         // Anti-Hallucination Pipeline
         this.antiHallucination = new AntiHallucinationPipeline({
