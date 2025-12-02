@@ -348,7 +348,7 @@ class KeaV7Engine {
             let userText = '';
             let sttMetadata = null; // For Gate 2
 
-            if (CONFIG.stt.provider === 'google') {
+            if (CONFIG.stt.provider === 'google' && this.sttClient) {
                 try {
                     // Google Cloud Speech-to-Text
                     // Send RAW PCM (skip 44 byte header)
@@ -543,6 +543,12 @@ class KeaV7Engine {
     // Synthesize single chunk
     async synthesizeChunk(text, index) {
         const startTime = Date.now();
+        
+        if (!this.ttsClient) {
+            console.error(`❌ TTS client not initialized - Google credentials missing`);
+            return null;
+        }
+        
         try {
             const [response] = await this.ttsClient.synthesizeSpeech({
                 input: { text },
@@ -562,7 +568,7 @@ class KeaV7Engine {
                 latency: Date.now() - startTime
             };
         } catch (error) {
-            console.error(`TTS error for chunk ${index}:`, error);
+            console.error(`TTS error for chunk ${index}:`, error.message);
             return null;
         }
     }
