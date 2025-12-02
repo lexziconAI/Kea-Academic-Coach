@@ -619,8 +619,9 @@
 
     <script src="kea_v7_anti_hallucination.js"></script>
     <script>
-        // Configuration
-        const WS_URL = `ws://${window.location.hostname}:${window.location.port}/relay-v7`;
+        // Configuration - use wss:// for HTTPS, ws:// for HTTP
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const WS_URL = `${wsProtocol}//${window.location.host}/relay-v7`;
         
         // Session & Coaching Context
         const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
