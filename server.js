@@ -621,11 +621,13 @@ async function openaiTTS(text) {
 // Start server
 const server = http.createServer(handleRequest);
 
-server.listen(PORT, () => {
+// Bind to 0.0.0.0 for Render (required for external access)
+const HOST = '0.0.0.0';
+server.listen(PORT, HOST, () => {
   log('info', `
 ╔════════════════════════════════════════════════════════════╗
-║  🥝  KEA V6 - Streaming AEC with Barge-In                  ║
-║  📚  MAMC01810 Managing for Sustainability                 ║
+║  🥝  KEA V7 - Interactive Oral Assessments (IOAaaS)        ║
+║  📚  Powered by Axiom Intelligence                         ║
 ╚════════════════════════════════════════════════════════════╝
 
 🌐 Server:   http://localhost:${PORT}
