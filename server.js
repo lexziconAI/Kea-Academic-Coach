@@ -10,6 +10,24 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Startup diagnostics
+console.log('🚀 Starting Kea Academic Coach...');
+console.log('📁 GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS || 'NOT SET');
+console.log('📁 GOOGLE_CLOUD_PROJECT:', process.env.GOOGLE_CLOUD_PROJECT || 'NOT SET');
+console.log('🔑 GROQ_API_KEY:', process.env.GROQ_API_KEY ? 'SET' : 'NOT SET');
+console.log('🌐 PORT:', process.env.PORT || '16602 (default)');
+
+// Check if Google credentials file exists
+const fsSync = require('fs');
+const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+if (credPath) {
+    if (fsSync.existsSync(credPath)) {
+        console.log('✅ Google credentials file found at:', credPath);
+    } else {
+        console.log('❌ Google credentials file NOT found at:', credPath);
+    }
+}
+
 const http = require('http');
 const fs = require('fs').promises;
 const { log } = require('./services/logging');
