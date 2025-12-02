@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Environment variables (contains secrets)
+.env
+
+# Test files
+test_files/
+*.mp3
+*.raw
+
+# IDE
+.vscode/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build outputs
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Reference folders
+kea-v4-reference/
+kea_v7_anti_hallucination/
+*.zip
+
+# Jupyter notebooks (development only)
+*.ipynb
+
+# Development documentation
+KEA_*.md

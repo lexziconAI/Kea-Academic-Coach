@@ -1,0 +1,32 @@
+# Render Blueprint for Kea Academic Coach
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: kea-academic-coach
+    runtime: node
+    region: oregon  # or singapore for APAC
+    plan: starter   # Can upgrade to standard for production
+    
+    buildCommand: npm install
+    startCommand: node server.js
+    
+    healthCheckPath: /health
+    
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 16602
+      - key: GROQ_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        sync: false  # Set manually - path to service account JSON
+      - key: GOOGLE_CLOUD_PROJECT
+        sync: false  # Set manually in Render dashboard
+
+    # Disk for temporary file uploads (optional)
+    disk:
+      name: uploads
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 1

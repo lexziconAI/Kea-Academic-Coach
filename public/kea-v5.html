@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🥝 Kea V5 - Parallel Chunked Voice Coach</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 100%);
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    h1 { margin-bottom: 0.5rem; color: #7ed957; }
+    .subtitle { color: #aaa; margin-bottom: 2rem; text-align: center; }
+    .badge { 
+      display: inline-block; 
+      background: #7ed957; 
+      color: #000; 
+      padding: 0.2rem 0.6rem; 
+      border-radius: 12px; 
+      font-size: 0.7rem; 
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+    
+    .card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 550px;
+      margin-bottom: 1rem;
+    }
+    
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #666;
+      transition: background 0.3s;
+    }
+    .dot.disconnected { background: #e74c3c; }
+    .dot.connecting { background: #f5a623; animation: pulse 1s infinite; }
+    .dot.ready { background: #7ed957; }
+    .dot.recording { background: #e74c3c; animation: pulse 0.5s infinite; }
+    .dot.processing { background: #3498db; animation: pulse 0.5s infinite; }
+    .dot.speaking { background: #9b59b6; animation: pulse 0.3s infinite; }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.15); }
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .session-btn {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: #7ed957;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px rgba(126, 217, 87, 0.3);
+    }
+    .session-btn:hover:not(:disabled) { background: #9aef73; transform: scale(1.05); }
+    .session-btn:disabled { background: #444; cursor: not-allowed; box-shadow: none; }
+    .session-btn.active { background: #e74c3c; box-shadow: 0 4px 20px rgba(231, 76, 60, 0.3); }
+    .session-btn.recording { background: #3498db; animation: pulse 1s infinite; }
+    
+    .hint { text-align: center; color: #888; font-size: 0.9rem; }
+
+    .voice-meter {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      margin-top: 1rem;
+      overflow: hidden;
+    }
+    .voice-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7ed957, #3498db);
+      border-radius: 4px;
+      transition: width 0.05s;
+    }
+    .voice-bar.speaking { background: linear-gradient(90deg, #9b59b6, #e74c3c); }
+
+    .chunk-progress {
+      display: flex;
+      gap: 4px;
+      margin-top: 1rem;
+      justify-content: center;
+    }
+    .chunk-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #333;
+      transition: all 0.2s;
+    }
+    .chunk-dot.pending { background: #f5a623; }
+    .chunk-dot.playing { background: #9b59b6; animation: pulse 0.5s infinite; }
+    .chunk-dot.done { background: #7ed957; }
+
+    .metrics {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .metric {
+      background: rgba(0,0,0,0.3);
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+    .metric.highlight { background: #7ed957; color: #000; font-weight: 600; }
+
+    .transcript {
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      padding: 1rem;
+      min-height: 250px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .log-entry { 
+      margin-bottom: 1rem; 
+      line-height: 1.5;
+      padding: 0.5rem;
+      border-radius: 8px;
+    }
+    .log-entry.user { 
+      background: rgba(52, 152, 219, 0.2);
+      border-left: 3px solid #3498db; 
+    }
+    .log-entry.kea { 
+      background: rgba(126, 217, 87, 0.1);
+      border-left: 3px solid #7ed957; 
+    }
+    .log-entry.system { 
+      color: #666; 
+      font-size: 0.85rem; 
+      text-align: center;
+      background: none;
+    }
+    .log-entry.error { color: #e74c3c; }
+    
+    .speaker { font-weight: 600; margin-bottom: 0.25rem; }
+    .speaker.user { color: #3498db; }
+    .speaker.kea { color: #7ed957; }
+    
+    .chunk-text {
+      font-size: 0.75rem;
+      color: #888;
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>🥝 Kea V5 <span class="badge">PARALLEL TTS</span></h1>
+  <p class="subtitle">Groq STT + Brain → Parallel Google Chirp TTS<br>~600ms to first audio!</p>
+
+  <div class="card">
+    <div class="status">
+      <div class="dot disconnected" id="statusDot"></div>
+      <span id="statusText">Connecting...</span>
+    </div>
+
+    <div class="controls">
+      <button class="session-btn" id="sessionBtn" disabled>▶️</button>
+      <p class="hint" id="hint">Connecting...</p>
+    </div>
+
+    <div class="voice-meter">
+      <div class="voice-bar" id="voiceBar"></div>
+    </div>
+
+    <div class="chunk-progress" id="chunkProgress"></div>
+
+    <div class="metrics" id="metrics" style="display: none;">
+      <span class="metric" id="metricSTT">STT: --</span>
+      <span class="metric" id="metricBrain">Brain: --</span>
+      <span class="metric" id="metricTTS">TTS: --</span>
+      <span class="metric highlight" id="metricTotal">Total: --</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+      💬 Conversation
+    </h3>
+    <div class="transcript" id="transcript">
+      <div class="log-entry system">Click the green button to start a voice session</div>
+    </div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════
+    // DOM Elements
+    // ═══════════════════════════════════════════════════════════════════════
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const sessionBtn = document.getElementById('sessionBtn');
+    const hint = document.getElementById('hint');
+    const voiceBar = document.getElementById('voiceBar');
+    const chunkProgress = document.getElementById('chunkProgress');
+    const metrics = document.getElementById('metrics');
+    const metricSTT = document.getElementById('metricSTT');
+    const metricBrain = document.getElementById('metricBrain');
+    const metricTTS = document.getElementById('metricTTS');
+    const metricTotal = document.getElementById('metricTotal');
+    const transcript = document.getElementById('transcript');
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // State
+    // ═══════════════════════════════════════════════════════════════════════
+    let ws = null;
+    let isConnected = false;
+    let isSessionActive = false;
+    let isRecording = false;
+    let isSpeaking = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+
+    // Audio
+    let audioContext = null;
+    let audioQueue = [];
+    let isPlaying = false;
+    let totalChunks = 0;
+    let playedChunks = 0;
+
+    // VAD
+    let vadStream = null;
+    let vadContext = null;
+    let vadAnalyser = null;
+    let vadInterval = null;
+    let speechStartTime = null;
+    let silenceStartTime = null;
+    let ttsEndTime = null;  // Track when TTS finished for post-speech grace period
+    
+    // VAD Thresholds - tuned to avoid echo detection
+    const SPEECH_THRESHOLD = 0.04;       // Increased from 0.02 - less sensitive to ambient noise
+    const SILENCE_TIMEOUT = 1200;        // ms of silence to end recording
+    const MIN_SPEECH_DURATION = 300;     // ms of speech to start recording (increased from 200)
+    const POST_TTS_GRACE_PERIOD = 800;   // ms to ignore VAD after TTS ends (let echo settle)
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Logging
+    // ═══════════════════════════════════════════════════════════════════════
+    function log(msg, type = 'system', chunks = null) {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+
+      if (type === 'user') {
+        entry.innerHTML = `<div class="speaker user">You</div>${msg}`;
+      } else if (type === 'kea') {
+        let html = `<div class="speaker kea">Kea</div>${msg}`;
+        if (chunks) {
+          html += `<div class="chunk-text">Streamed in ${chunks} chunks</div>`;
+        }
+        entry.innerHTML = html;
+      } else {
+        entry.textContent = msg;
+      }
+
+      transcript.appendChild(entry);
+      transcript.scrollTop = transcript.scrollHeight;
+    }
+
+    function setStatus(status, text) {
+      statusDot.className = 'dot ' + status;
+      statusText.textContent = text || status;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Audio Playback (OGG_OPUS from Google)
+    // ═══════════════════════════════════════════════════════════════════════
+    async function initAudio() {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function updateChunkProgress() {
+      let html = '';
+      for (let i = 0; i < totalChunks; i++) {
+        let cls = 'chunk-dot';
+        if (i < playedChunks) cls += ' done';
+        else if (i === playedChunks && isPlaying) cls += ' playing';
+        else if (i < audioQueue.length + playedChunks) cls += ' pending';
+        html += `<div class="${cls}"></div>`;
+      }
+      chunkProgress.innerHTML = html;
+    }
+
+    async function enqueueChunk(chunkData) {
+      audioQueue.push(chunkData);
+      if (totalChunks === 0) totalChunks = 1;
+      else totalChunks = Math.max(totalChunks, chunkData.chunkIndex + 1);
+      updateChunkProgress();
+      
+      if (!isPlaying) {
+        playNextChunk();
+      }
+    }
+
+    async function playNextChunk() {
+      if (audioQueue.length === 0) {
+        isPlaying = false;
+        isSpeaking = false;
+        ttsEndTime = Date.now();  // Start grace period when TTS finishes
+        voiceBar.classList.remove('speaking');
+        setStatus('ready', isSessionActive ? 'Listening...' : 'Ready');
+        hint.textContent = isSessionActive ? 'Speak when ready...' : 'Click to start';
+        console.log('TTS finished, grace period started');
+        return;
+      }
+
+      isPlaying = true;
+      isSpeaking = true;
+      voiceBar.classList.add('speaking');
+      const chunk = audioQueue.shift();
+      
+      updateChunkProgress();
+
+      try {
+        // Decode base64 OGG to audio
+        const binaryString = atob(chunk.audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        const audioBuffer = await audioContext.decodeAudioData(bytes.buffer);
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        
+        source.onended = () => {
+          playedChunks++;
+          updateChunkProgress();
+          playNextChunk();
+        };
+
+        source.start();
+      } catch (error) {
+        console.error('Audio playback error:', error);
+        playedChunks++;
+        playNextChunk();
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // VAD (Voice Activity Detection)
+    // ═══════════════════════════════════════════════════════════════════════
+    async function startVAD() {
+      try {
+        vadStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 }
+        });
+
+        vadContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = vadContext.createMediaStreamSource(vadStream);
+        vadAnalyser = vadContext.createAnalyser();
+        vadAnalyser.fftSize = 256;
+        source.connect(vadAnalyser);
+
+        vadInterval = setInterval(() => {
+          if (!isSessionActive) return;
+
+          const dataArray = new Uint8Array(vadAnalyser.frequencyBinCount);
+          vadAnalyser.getByteFrequencyData(dataArray);
+          const volume = (dataArray.reduce((a, b) => a + b, 0) / dataArray.length) / 255;
+
+          voiceBar.style.width = `${Math.min(volume * 500, 100)}%`;
+
+          // Don't process during playback
+          if (isSpeaking) return;
+          
+          // Grace period after TTS ends - ignore VAD to let echo settle
+          if (ttsEndTime && (Date.now() - ttsEndTime < POST_TTS_GRACE_PERIOD)) {
+            return;
+          }
+
+          // Detect speech start
+          if (!isRecording) {
+            if (volume > SPEECH_THRESHOLD) {
+              if (!speechStartTime) speechStartTime = Date.now();
+              else if (Date.now() - speechStartTime > MIN_SPEECH_DURATION) {
+                console.log('VAD: Starting recording, volume:', volume.toFixed(3));
+                startRecording();
+                speechStartTime = null;
+              }
+            } else {
+              speechStartTime = null;
+            }
+          }
+
+          // Detect speech end
+          if (isRecording) {
+            if (volume > SPEECH_THRESHOLD) {
+              silenceStartTime = null;
+            } else {
+              if (!silenceStartTime) silenceStartTime = Date.now();
+              else if (Date.now() - silenceStartTime > SILENCE_TIMEOUT) {
+                console.log('VAD: Stopping recording after silence');
+                stopRecording();
+                silenceStartTime = null;
+              }
+            }
+          }
+        }, 50);
+
+        console.log('VAD started');
+      } catch (error) {
+        console.error('VAD failed:', error);
+        log(`Microphone error: ${error.message}`, 'error');
+      }
+    }
+
+    function stopVAD() {
+      if (vadInterval) { clearInterval(vadInterval); vadInterval = null; }
+      if (vadStream) { vadStream.getTracks().forEach(t => t.stop()); vadStream = null; }
+      if (vadContext) { vadContext.close(); vadContext = null; }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Recording
+    // ═══════════════════════════════════════════════════════════════════════
+    async function startRecording() {
+      if (isRecording || isSpeaking) return;
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+        });
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          if (audioChunks.length > 0) {
+            const arrayBuffer = await blob.arrayBuffer();
+            
+            // Convert to base64 without stack overflow (chunk the conversion)
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+              const chunk = bytes.subarray(i, i + chunkSize);
+              binary += String.fromCharCode.apply(null, chunk);
+            }
+            const base64 = btoa(binary);
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              // Reset chunk tracking
+              totalChunks = 0;
+              playedChunks = 0;
+              audioQueue = [];
+              chunkProgress.innerHTML = '';
+              
+              ws.send(JSON.stringify({ type: 'audio', audio: base64, format: 'webm' }));
+            }
+          }
+          stream.getTracks().forEach(t => t.stop());
+        };
+
+        mediaRecorder.start(100);
+        isRecording = true;
+        sessionBtn.classList.add('recording');
+        sessionBtn.textContent = '🔴';
+        setStatus('recording', 'Listening...');
+        hint.textContent = 'Listening...';
+      } catch (error) {
+        console.error('Recording failed:', error);
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        sessionBtn.classList.remove('recording');
+        sessionBtn.textContent = '⏸️';
+        setStatus('processing', 'Processing...');
+        hint.textContent = 'Processing...';
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Session Control
+    // ═══════════════════════════════════════════════════════════════════════
+    async function toggleSession() {
+      if (!isConnected) return;
+
+      if (isSessionActive) {
+        isSessionActive = false;
+        stopVAD();
+        if (isRecording) stopRecording();
+        sessionBtn.textContent = '▶️';
+        sessionBtn.classList.remove('active', 'recording');
+        hint.textContent = 'Click to start';
+        setStatus('ready', 'Ready');
+      } else {
+        isSessionActive = true;
+        await initAudio();
+        await startVAD();
+        sessionBtn.textContent = '⏸️';
+        sessionBtn.classList.add('active');
+        hint.textContent = 'Speak when ready...';
+        setStatus('ready', 'Listening...');
+        log('Session started - speak naturally!', 'system');
+        metrics.style.display = 'flex';
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WebSocket
+    // ═══════════════════════════════════════════════════════════════════════
+    function connect() {
+      setStatus('connecting', 'Connecting...');
+
+      ws = new WebSocket(`ws://${location.host}/relay-v5`);
+
+      ws.onopen = () => {
+        log('Connected to Kea V5', 'system');
+      };
+
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        handleMessage(data);
+      };
+
+      ws.onclose = () => {
+        setStatus('disconnected', 'Disconnected');
+        isConnected = false;
+        isSessionActive = false;
+        sessionBtn.disabled = true;
+        hint.textContent = 'Reconnecting...';
+        stopVAD();
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => {
+        setStatus('disconnected', 'Connection error');
+      };
+    }
+
+    function handleMessage(data) {
+      switch (data.type) {
+        case 'connected':
+          isConnected = true;
+          setStatus('ready', 'Ready');
+          sessionBtn.disabled = false;
+          hint.textContent = 'Click ▶️ to start';
+          break;
+
+        case 'status':
+          if (data.stage === 'transcribing') setStatus('processing', 'Transcribing...');
+          else if (data.stage === 'thinking') setStatus('processing', 'Thinking...');
+          break;
+
+        case 'transcript':
+          log(data.text, 'user');
+          break;
+
+        case 'audio_chunk':
+          if (!isSpeaking) {
+            setStatus('speaking', 'Speaking...');
+            hint.textContent = 'Kea is responding...';
+          }
+          enqueueChunk(data);
+          break;
+
+        case 'response':
+          if (data.latencies) {
+            if (data.latencies.stt) metricSTT.textContent = `STT: ${data.latencies.stt}ms`;
+            metricBrain.textContent = `Brain: ${data.latencies.brain}ms`;
+            metricTTS.textContent = `TTS: ${data.latencies.tts}ms`;
+            metricTotal.textContent = `Total: ${data.latencies.total}ms`;
+          }
+          // Log the full response with chunk count
+          setTimeout(() => {
+            log(data.text, 'kea', totalChunks);
+          }, 100);
+          break;
+
+        case 'speech_complete':
+          // Audio might still be playing
+          break;
+
+        case 'error':
+          log(`Error: ${data.message}`, 'error');
+          setStatus('ready', isSessionActive ? 'Listening...' : 'Ready');
+          break;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Event Listeners
+    // ═══════════════════════════════════════════════════════════════════════
+    sessionBtn.addEventListener('click', toggleSession);
+
+    // Start connection
+    connect();
+  </script>
+</body>
+</html>

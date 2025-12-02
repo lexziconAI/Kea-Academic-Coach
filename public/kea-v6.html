@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kea V6 - Streaming AEC Voice</title>
+    <style>
+        :root {
+            --kea-green: #4CAF50;
+            --kea-dark: #1a1a2e;
+            --kea-light: #16213e;
+            --kea-accent: #e94560;
+            --kea-gold: #f39c12;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--kea-dark) 0%, var(--kea-light) 100%);
+            min-height: 100vh;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header .version {
+            background: var(--kea-accent);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        
+        .header .features {
+            color: var(--kea-gold);
+            font-size: 0.9em;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+            transition: background 0.3s;
+        }
+        
+        .status-dot.connected { background: var(--kea-green); }
+        .status-dot.streaming { background: var(--kea-gold); animation: pulse 1s infinite; }
+        .status-dot.speaking { background: var(--kea-accent); animation: pulse 0.5s infinite; }
+        .status-dot.listening { background: var(--kea-green); animation: pulse 0.8s infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.9); }
+        }
+        
+        .mode-switcher {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #aaa;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .mode-btn.active {
+            background: var(--kea-green);
+            color: white;
+            border-color: var(--kea-green);
+            font-weight: bold;
+        }
+
+        .mic-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(145deg, var(--kea-green), #45a049);
+            color: white;
+            font-size: 3em;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.3);
+            margin: 20px auto;
+            display: block;
+        }
+        
+        .mic-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(76, 175, 80, 0.4);
+        }
+        
+        .mic-button.active {
+            background: linear-gradient(145deg, var(--kea-accent), #c73e54);
+            animation: mic-active 1.5s infinite;
+        }
+        
+        .mic-button.processing {
+            background: linear-gradient(145deg, var(--kea-gold), #d68910);
+            animation: processing 1s infinite;
+        }
+        
+        @keyframes mic-active {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.7); }
+            50% { box-shadow: 0 0 0 30px rgba(233, 69, 96, 0); }
+        }
+        
+        @keyframes processing {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(0.95); }
+        }
+        
+        .visualizer {
+            height: 80px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .visualizer canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .chat-panel {
+            min-height: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .chat-message {
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .chat-message.user {
+            background: rgba(76, 175, 80, 0.2);
+            margin-left: 50px;
+        }
+        
+        .chat-message.assistant {
+            background: rgba(233, 69, 96, 0.2);
+            margin-right: 50px;
+        }
+        
+        .chat-message .speaker {
+            font-size: 0.8em;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+        
+        .metrics-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .metric {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .metric .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--kea-gold);
+        }
+        
+        .metric .label {
+            font-size: 0.8em;
+            color: #aaa;
+        }
+        
+        .debug-panel {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.8em;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .debug-line {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .debug-line.echo { color: #888; }
+        .debug-line.speech { color: var(--kea-green); }
+        .debug-line.interrupt { color: var(--kea-accent); }
+        .debug-line.error { color: #ff6b6b; }
+        
+        .barge-in-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--kea-accent);
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-size: 1.5em;
+            font-weight: bold;
+            display: none;
+            z-index: 1000;
+            animation: flash 0.2s infinite;
+        }
+        
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .barge-in-indicator.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="version">V6 - STREAMING AEC</span>
+        <h1>🥝 Kea Academic Coach</h1>
+        <div class="features">Continuous Streaming • Real-time Echo Detection • Barge-in Support</div>
+    </div>
+    
+    <div class="container">
+        <!-- Architecture Switcher -->
+        <div class="mode-switcher">
+            <button class="mode-btn active" onclick="setMode('heuristic')">Mode A: Heuristic Guard</button>
+            <button class="mode-btn" onclick="setMode('llm_repair')">Mode B: LLM Repair</button>
+            <button class="mode-btn" onclick="setMode('acoustic_gating')">Mode C: Acoustic Gate</button>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="panel status-panel">
+            <div class="status-item">
+                <div class="status-dot" id="connectionDot"></div>
+                <span id="connectionStatus">Disconnected</span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot" id="streamingDot"></div>
+                <span id="streamingStatus">Not Streaming</span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot" id="vadDot"></div>
+                <span id="vadStatus">VAD Idle</span>
+            </div>
+            <div class="status-item">
+                <div class="status-dot" id="echoDot"></div>
+                <span id="echoStatus">Echo: --</span>
+            </div>
+        </div>
+        
+        <!-- Mic Button & Visualizer -->
+        <div class="panel">
+            <button class="mic-button" id="micButton" disabled>🎤</button>
+            <div class="visualizer">
+                <canvas id="visualizer"></canvas>
+            </div>
+        </div>
+        
+        <!-- Chat Panel -->
+        <div class="panel chat-panel" id="chatPanel">
+            <div class="chat-message assistant">
+                <div class="speaker">🥝 Kea</div>
+                <div>Kia ora! I'm Kea, your academic research coach. Ready to help you think through your work. Click the microphone to start streaming - I can hear you even while I'm speaking!</div>
+            </div>
+        </div>
+        
+        <!-- Metrics Panel -->
+        <div class="panel metrics-panel">
+            <div class="metric">
+                <div class="value" id="latencyValue">--</div>
+                <div class="label">Total Latency (ms)</div>
+            </div>
+            <div class="metric">
+                <div class="value" id="sttValue">--</div>
+                <div class="label">STT (ms)</div>
+            </div>
+            <div class="metric">
+                <div class="value" id="brainValue">--</div>
+                <div class="label">Brain (ms)</div>
+            </div>
+            <div class="metric">
+                <div class="value" id="interruptCount">0</div>
+                <div class="label">Barge-ins</div>
+            </div>
+        </div>
+        
+        <!-- Debug Panel -->
+        <div class="panel debug-panel" id="debugPanel"></div>
+    </div>
+    
+    <!-- Barge-in Indicator -->
+    <div class="barge-in-indicator" id="bargeInIndicator">⚡ BARGE-IN!</div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // KEA V6 CLIENT - STREAMING AEC WITH BARGE-IN
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        const CONFIG = {
+            wsUrl: `ws://${window.location.host}/relay-v6`,
+            sampleRate: 16000,
+            chunkSizeMs: 20,
+            fadeOutMs: 50
+        };
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        const state = {
+            ws: null,
+            isStreaming: false,
+            isListening: false,
+            isTTSPlaying: false,
+            audioContext: null,
+            worklet: null,
+            stream: null,
+            pendingAudioChunks: [],
+            currentAudioSource: null,
+            interruptCount: 0,
+            sessionId: null
+        };
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // UI ELEMENTS
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        const ui = {
+            micButton: document.getElementById('micButton'),
+            connectionDot: document.getElementById('connectionDot'),
+            connectionStatus: document.getElementById('connectionStatus'),
+            streamingDot: document.getElementById('streamingDot'),
+            streamingStatus: document.getElementById('streamingStatus'),
+            vadDot: document.getElementById('vadDot'),
+            vadStatus: document.getElementById('vadStatus'),
+            echoDot: document.getElementById('echoDot'),
+            echoStatus: document.getElementById('echoStatus'),
+            chatPanel: document.getElementById('chatPanel'),
+            debugPanel: document.getElementById('debugPanel'),
+            bargeInIndicator: document.getElementById('bargeInIndicator'),
+            latencyValue: document.getElementById('latencyValue'),
+            sttValue: document.getElementById('sttValue'),
+            brainValue: document.getElementById('brainValue'),
+            interruptCount: document.getElementById('interruptCount'),
+            visualizer: document.getElementById('visualizer')
+        };
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // DEBUG LOGGING
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        function debugLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.className = `debug-line ${type}`;
+            line.textContent = `[${time}] ${message}`;
+            ui.debugPanel.appendChild(line);
+            ui.debugPanel.scrollTop = ui.debugPanel.scrollHeight;
+            
+            // Keep only last 100 lines
+            while (ui.debugPanel.children.length > 100) {
+                ui.debugPanel.removeChild(ui.debugPanel.firstChild);
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // WEBSOCKET CONNECTION
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        function connectWebSocket() {
+            debugLog('Connecting to V6 WebSocket...', 'info');
+            
+            state.ws = new WebSocket(CONFIG.wsUrl);
+            
+            state.ws.onopen = () => {
+                debugLog('WebSocket connected', 'speech');
+                ui.connectionDot.className = 'status-dot connected';
+                ui.connectionStatus.textContent = 'Connected';
+                ui.micButton.disabled = false;
+            };
+            
+            state.ws.onclose = () => {
+                debugLog('WebSocket disconnected', 'error');
+                ui.connectionDot.className = 'status-dot';
+                ui.connectionStatus.textContent = 'Disconnected';
+                ui.micButton.disabled = true;
+                
+                // Reconnect after 3 seconds
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            state.ws.onerror = (error) => {
+                debugLog(`WebSocket error: ${error.message}`, 'error');
+            };
+            
+            state.ws.onmessage = handleServerMessage;
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // SERVER MESSAGE HANDLER
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        function handleServerMessage(event) {
+            const message = JSON.parse(event.data);
+            
+            switch (message.type) {
+                case 'connected':
+                    state.sessionId = message.sessionId;
+                    debugLog(`Session: ${message.sessionId}`, 'info');
+                    break;
+                    
+                case 'status':
+                    updateStatus(message.stage);
+                    break;
+                    
+                case 'speech_start':
+                    debugLog('Server detected speech start', 'speech');
+                    ui.vadDot.className = 'status-dot speaking';
+                    ui.vadStatus.textContent = 'Speaking...';
+                    break;
+                    
+                case 'speech_end':
+                    debugLog('Server detected speech end', 'speech');
+                    ui.vadDot.className = 'status-dot listening';
+                    ui.vadStatus.textContent = 'Processing...';
+                    break;
+                    
+                case 'transcript':
+                    addChatMessage('user', message.text);
+                    debugLog(`User: "${message.text}"`, 'speech');
+                    break;
+                    
+                case 'response':
+                    addChatMessage('assistant', message.text);
+                    debugLog(`Kea: "${message.text.substring(0, 50)}..."`, 'info');
+                    break;
+                    
+                case 'audio_chunk':
+                    handleAudioChunk(message);
+                    break;
+                    
+                case 'speech_complete':
+                    state.isTTSPlaying = false;
+                    debugLog('TTS complete', 'info');
+                    ui.vadDot.className = 'status-dot listening';
+                    ui.vadStatus.textContent = 'Listening';
+                    break;
+                    
+                case 'interrupt':
+                    handleInterrupt(message);
+                    break;
+                    
+                case 'echo_status':
+                    updateEchoStatus(message);
+                    break;
+                    
+                case 'complete':
+                    updateMetrics(message.latencies);
+                    break;
+                    
+                case 'error':
+                    debugLog(`Error: ${message.message}`, 'error');
+                    break;
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // AUDIO WORKLET SETUP
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        async function setupAudioWorklet() {
+            try {
+                state.audioContext = new AudioContext({ sampleRate: 48000 });
+                
+                // Load the worklet module
+                await state.audioContext.audioWorklet.addModule('/audio-worklet.js');
+                debugLog('AudioWorklet loaded', 'info');
+                
+                // Get microphone
+                state.stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true, // ENABLED for browser AEC
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                debugLog('Microphone acquired', 'speech');
+                
+                // Create source
+                const source = state.audioContext.createMediaStreamSource(state.stream);
+                
+                // Create worklet node
+                state.worklet = new AudioWorkletNode(state.audioContext, 'kea-audio-processor', {
+                    processorOptions: {
+                        sampleRate: CONFIG.sampleRate,
+                        chunkSizeMs: CONFIG.chunkSizeMs
+                    }
+                });
+                
+                // Tell worklet the browser sample rate
+                state.worklet.port.postMessage({
+                    type: 'browserSampleRate',
+                    rate: state.audioContext.sampleRate
+                });
+                
+                // Handle audio chunks from worklet
+                state.worklet.port.onmessage = (event) => {
+                    if (event.data.type === 'audio_chunk' && state.isStreaming && state.ws?.readyState === WebSocket.OPEN) {
+                        // Convert Float32Array to base64
+                        const buffer = event.data.samples.buffer;
+                        const base64 = arrayBufferToBase64(buffer);
+                        
+                        state.ws.send(JSON.stringify({
+                            type: 'audio_chunk',
+                            audio: base64,
+                            timestamp: event.data.timestamp,
+                            energy: event.data.energy
+                        }));
+                        
+                        // Update visualizer
+                        updateVisualizer(event.data.energy);
+                    }
+                };
+                
+                // Connect: source → worklet
+                source.connect(state.worklet);
+                
+                // Don't connect to destination (no playback of mic)
+                
+                debugLog('Audio pipeline ready', 'speech');
+                
+            } catch (error) {
+                debugLog(`Audio setup error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // AUDIO PLAYBACK WITH INTERRUPT SUPPORT
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        const audioQueue = [];
+        let isPlaying = false;
+        
+        function handleAudioChunk(chunk) {
+            debugLog(`Audio chunk ${chunk.chunkIndex + 1}/${chunk.totalChunks} (${chunk.latency}ms) | Size: ${chunk.audio.length}`, 'info');
+            
+            audioQueue.push({
+                audio: chunk.audio,
+                text: chunk.text,
+                index: chunk.chunkIndex
+            });
+            
+            state.isTTSPlaying = true;
+            
+            if (!isPlaying) {
+                playNextChunk();
+            }
+        }
+        
+        async function playNextChunk() {
+            if (audioQueue.length === 0) {
+                isPlaying = false;
+                return;
+            }
+            
+            isPlaying = true;
+            const chunk = audioQueue.shift();
+            
+            try {
+                // Mute the worklet during TTS to prevent feedback
+                if (state.worklet) {
+                    state.worklet.port.postMessage({ type: 'mute', muted: true });
+                }
+                
+                // Decode and play
+                const audioData = base64ToArrayBuffer(chunk.audio);
+                debugLog(`Decoding ${audioData.byteLength} bytes...`, 'info');
+                
+                const audioBuffer = await state.audioContext.decodeAudioData(audioData);
+                debugLog(`Decoded: ${audioBuffer.duration.toFixed(2)}s @ ${audioBuffer.sampleRate}Hz`, 'info');
+                
+                const source = state.audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                
+                // Create gain node for fade-out on interrupt
+                const gainNode = state.audioContext.createGain();
+                source.connect(gainNode);
+                gainNode.connect(state.audioContext.destination);
+                
+                state.currentAudioSource = { source, gainNode };
+                
+                source.onended = () => {
+                    state.currentAudioSource = null;
+                    
+                    // Unmute after a small grace period
+                    setTimeout(() => {
+                        if (state.worklet && audioQueue.length === 0) {
+                            state.worklet.port.postMessage({ type: 'mute', muted: false });
+                        }
+                    }, 200);
+                    
+                    playNextChunk();
+                };
+                
+                source.start();
+                
+            } catch (error) {
+                debugLog(`Audio playback error: ${error.message}`, 'error');
+                playNextChunk();
+            }
+        }
+        
+        function handleInterrupt(signal) {
+            if (signal.type === 'interrupt_now') {
+                debugLog(`⚡ BARGE-IN! Cancelled ${signal.cancelledChunks || 0} chunks`, 'interrupt');
+                
+                // Show visual indicator
+                ui.bargeInIndicator.classList.add('active');
+                setTimeout(() => ui.bargeInIndicator.classList.remove('active'), 500);
+                
+                // Update counter
+                state.interruptCount++;
+                ui.interruptCount.textContent = state.interruptCount;
+                
+                // Stop current audio with fade
+                if (state.currentAudioSource) {
+                    const { source, gainNode } = state.currentAudioSource;
+                    const now = state.audioContext.currentTime;
+                    gainNode.gain.setValueAtTime(1, now);
+                    gainNode.gain.linearRampToValueAtTime(0, now + CONFIG.fadeOutMs / 1000);
+                    setTimeout(() => {
+                        try { source.stop(); } catch (e) {}
+                    }, CONFIG.fadeOutMs);
+                }
+                
+                // Clear audio queue
+                audioQueue.length = 0;
+                isPlaying = false;
+                state.isTTSPlaying = false;
+                
+                // Unmute worklet immediately
+                if (state.worklet) {
+                    state.worklet.port.postMessage({ type: 'mute', muted: false });
+                }
+                
+            } else if (signal.type === 'prepare_interrupt') {
+                debugLog('Prepare interrupt signal received', 'interrupt');
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // UI UPDATES
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        function updateStatus(stage) {
+            const stages = {
+                'transcribing': { text: 'Transcribing...', dot: 'streaming' },
+                'thinking': { text: 'Thinking...', dot: 'streaming' },
+                'speaking': { text: 'Speaking...', dot: 'speaking' }
+            };
+            
+            const info = stages[stage];
+            if (info) {
+                ui.vadStatus.textContent = info.text;
+                ui.vadDot.className = `status-dot ${info.dot}`;
+            }
+        }
+        
+        function updateMetrics(latencies) {
+            ui.latencyValue.textContent = latencies.totalLatency || '--';
+            ui.sttValue.textContent = latencies.sttLatency || '--';
+            ui.brainValue.textContent = latencies.brainLatency || '--';
+        }
+        
+        function addChatMessage(role, text) {
+            const message = document.createElement('div');
+            message.className = `chat-message ${role}`;
+            message.innerHTML = `
+                <div class="speaker">${role === 'user' ? '👤 You' : '🥝 Kea'}</div>
+                <div>${text}</div>
+            `;
+            ui.chatPanel.appendChild(message);
+            ui.chatPanel.scrollTop = ui.chatPanel.scrollHeight;
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // VISUALIZER
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        const canvas = ui.visualizer;
+        const ctx = canvas.getContext('2d');
+        const energyHistory = new Array(100).fill(0);
+        
+        function updateVisualizer(energy) {
+            energyHistory.push(energy);
+            energyHistory.shift();
+            
+            // Draw
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = state.isTTSPlaying ? '#e94560' : '#4CAF50';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const width = canvas.width / energyHistory.length;
+            for (let i = 0; i < energyHistory.length; i++) {
+                const x = i * width;
+                const y = canvas.height / 2 - (energyHistory[i] * canvas.height * 10);
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.stroke();
+        }
+        
+        function updateEchoStatus(data) {
+            // Update echo dot color
+            if (data.isEcho) {
+                ui.echoDot.className = 'status-dot speaking'; // Red/Orange for echo
+                ui.echoStatus.textContent = `Echo: ${(data.confidence * 100).toFixed(0)}%`;
+            } else {
+                ui.echoDot.className = 'status-dot listening'; // Green for clean
+                ui.echoStatus.textContent = `Clean: ${(data.confidence * 100).toFixed(0)}%`;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // ARCHITECTURE SWITCHER
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        function setMode(mode) {
+            // Update UI
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Send to server
+            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+                state.ws.send(JSON.stringify({
+                    type: 'set_mode',
+                    mode: mode
+                }));
+                debugLog(`Switched to Mode: ${mode.toUpperCase()}`, 'info');
+            } else {
+                debugLog('Connect first to switch modes', 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // UTILITY FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, bytes.slice(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+        
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // MIC BUTTON HANDLER
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        ui.micButton.addEventListener('click', async () => {
+            if (!state.isStreaming) {
+                // Start streaming
+                try {
+                    if (!state.audioContext) {
+                        await setupAudioWorklet();
+                    }
+                    
+                    if (state.audioContext.state === 'suspended') {
+                        await state.audioContext.resume();
+                    }
+                    
+                    state.isStreaming = true;
+                    ui.micButton.classList.add('active');
+                    ui.micButton.textContent = '🔴';
+                    ui.streamingDot.className = 'status-dot streaming';
+                    ui.streamingStatus.textContent = 'Streaming';
+                    ui.vadDot.className = 'status-dot listening';
+                    ui.vadStatus.textContent = 'Listening';
+                    
+                    debugLog('Streaming started', 'speech');
+                    
+                } catch (error) {
+                    debugLog(`Failed to start: ${error.message}`, 'error');
+                }
+                
+            } else {
+                // Stop streaming
+                state.isStreaming = false;
+                ui.micButton.classList.remove('active');
+                ui.micButton.textContent = '🎤';
+                ui.streamingDot.className = 'status-dot';
+                ui.streamingStatus.textContent = 'Not Streaming';
+                ui.vadDot.className = 'status-dot';
+                ui.vadStatus.textContent = 'VAD Idle';
+                
+                debugLog('Streaming stopped', 'info');
+            }
+        });
+        
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // INITIALIZE
+        // ═══════════════════════════════════════════════════════════════════════════════
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // Connect WebSocket
+        connectWebSocket();
+        
+        debugLog('Kea V6 Client initialized', 'info');
+        debugLog('Features: Continuous Streaming, Server VAD, Echo Detection, Barge-in', 'info');
+    </script>
+</body>
+</html>

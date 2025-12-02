@@ -1,0 +1,319 @@
+{
+  "course": "MAMC01810",
+  "title": "Managing for Sustainability - Strategic Report",
+  "version": "2024",
+  "total_weight": 100,
+  
+  "criteria": {
+    "criterion_1": {
+      "title": "Current Sustainability Practices",
+      "weight": 30,
+      "description": "Analysis of three current sustainability practices with evidence from organizational sources",
+      "levels": {
+        "excellent": {
+          "range": "27-30",
+          "descriptors": [
+            "Three practices clearly identified with specific evidence",
+            "Metrics, dates, and program names cited",
+            "Sources properly referenced (report names, page numbers)",
+            "Stakeholder analysis included for each practice",
+            "Critical evaluation of practice effectiveness"
+          ]
+        },
+        "good": {
+          "range": "21-26",
+          "descriptors": [
+            "Three practices identified with some evidence",
+            "Some metrics or dates present",
+            "Sources referenced but may lack specificity",
+            "Basic stakeholder consideration"
+          ]
+        },
+        "satisfactory": {
+          "range": "15-20",
+          "descriptors": [
+            "Practices identified but evidence is generic",
+            "Limited use of specific metrics or dates",
+            "Sources may be website-only",
+            "Minimal stakeholder analysis"
+          ]
+        },
+        "needs_improvement": {
+          "range": "0-14",
+          "descriptors": [
+            "Practices vague or fewer than three",
+            "Little to no evidence from organizational sources",
+            "No specific metrics, dates, or citations",
+            "No stakeholder consideration"
+          ]
+        }
+      },
+      "coaching_focus": {
+        "generic_evidence": [
+          "Tell me more about where you found this information.",
+          "What specific reports or documents did you use?",
+          "Did you find any numbers or dates in their sustainability reports?"
+        ],
+        "missing_stakeholders": [
+          "Who else might have a stake in this practice?",
+          "How do different groups view this practice differently?",
+          "Are there any tensions between stakeholder groups here?"
+        ],
+        "weak_critical_analysis": [
+          "Do you think their claims match what's actually happening?",
+          "What did they NOT talk about in their reports?",
+          "If you were a stakeholder, what would concern you?"
+        ]
+      }
+    },
+    
+    "criterion_2": {
+      "title": "Strategic Sustainability Strategies",
+      "weight": 35,
+      "description": "Three strategic recommendations that address identified gaps in current practices",
+      "levels": {
+        "excellent": {
+          "range": "31-35",
+          "descriptors": [
+            "Clear gap identification before each strategy",
+            "Explicit connection between gap and strategy",
+            "Industry examples cited to support feasibility",
+            "Examples verified from real organizations",
+            "Strategic thinking shows originality"
+          ]
+        },
+        "good": {
+          "range": "25-30",
+          "descriptors": [
+            "Gaps identified for most strategies",
+            "Connection between gap and strategy present but could be clearer",
+            "Some industry examples provided",
+            "Strategies are reasonable and relevant"
+          ]
+        },
+        "satisfactory": {
+          "range": "17-24",
+          "descriptors": [
+            "Limited gap identification",
+            "Strategies proposed without clear connection to gaps",
+            "Generic or no industry examples",
+            "Strategies are general rather than specific to organization"
+          ]
+        },
+        "needs_improvement": {
+          "range": "0-16",
+          "descriptors": [
+            "No gaps identified",
+            "Strategies disconnected from analysis",
+            "No supporting examples",
+            "Strategies are vague or unrealistic"
+          ]
+        }
+      },
+      "coaching_focus": {
+        "no_gap_connection": [
+          "Let's think about the connection here. What problem does this strategy solve?",
+          "What challenges did you notice in their current approach?",
+          "How does this strategy address what you found in your analysis?"
+        ],
+        "no_industry_examples": [
+          "Do you know of other companies that have done something similar?",
+          "Where did you get the idea for this strategy?",
+          "What made you think this would work for this organization?"
+        ],
+        "generic_strategies": [
+          "How would this look specifically for this organization?",
+          "What resources would they need to implement this?",
+          "What barriers might they face?"
+        ]
+      }
+    },
+    
+    "criterion_3": {
+      "title": "Implementation Methods",
+      "weight": 25,
+      "description": "Realistic implementation methods with industry examples and barrier acknowledgment",
+      "levels": {
+        "excellent": {
+          "range": "22-25",
+          "descriptors": [
+            "Implementation methods are specific and realistic",
+            "Real-world examples from other organizations",
+            "Timelines and resources considered",
+            "Barriers and challenges acknowledged",
+            "Methods aligned with organizational capabilities"
+          ]
+        },
+        "good": {
+          "range": "17-21",
+          "descriptors": [
+            "Implementation methods are reasonable",
+            "Some examples provided",
+            "Basic consideration of feasibility",
+            "Some barrier awareness"
+          ]
+        },
+        "satisfactory": {
+          "range": "12-16",
+          "descriptors": [
+            "Implementation methods are generic",
+            "Limited or no examples",
+            "Feasibility not fully considered",
+            "Barriers not addressed"
+          ]
+        },
+        "needs_improvement": {
+          "range": "0-11",
+          "descriptors": [
+            "No clear implementation methods",
+            "Purely theoretical",
+            "Unrealistic expectations",
+            "No consideration of barriers"
+          ]
+        }
+      },
+      "coaching_focus": {
+        "generic_methods": [
+          "How might they actually go about implementing this?",
+          "What specific steps would they need to take?",
+          "Who would be responsible for making this happen?"
+        ],
+        "no_examples": [
+          "Do you know of any other organizations that have implemented something like this?",
+          "What made you think this approach would work?",
+          "Have you seen this done successfully elsewhere?"
+        ],
+        "unrealistic": [
+          "What challenges might they face in doing this?",
+          "What resources would they need?",
+          "How long do you think this would take to implement?"
+        ]
+      }
+    },
+    
+    "criterion_4": {
+      "title": "Written Presentation",
+      "weight": 10,
+      "description": "Academic writing quality, structure, and referencing",
+      "levels": {
+        "excellent": {
+          "range": "9-10",
+          "descriptors": [
+            "Clear and professional writing",
+            "Well-structured with logical flow",
+            "Proper academic referencing",
+            "Appropriate use of discipline terminology"
+          ]
+        },
+        "good": {
+          "range": "7-8",
+          "descriptors": [
+            "Generally clear writing",
+            "Good structure",
+            "References present with minor issues",
+            "Appropriate language"
+          ]
+        },
+        "satisfactory": {
+          "range": "5-6",
+          "descriptors": [
+            "Writing is acceptable but could be clearer",
+            "Structure is basic",
+            "Referencing inconsistent",
+            "Some language issues"
+          ]
+        },
+        "needs_improvement": {
+          "range": "0-4",
+          "descriptors": [
+            "Writing is unclear or unprofessional",
+            "Poor structure",
+            "Inadequate referencing",
+            "Inappropriate language use"
+          ]
+        }
+      },
+      "coaching_focus": {
+        "general": [
+          "Have you had a chance to proofread your work?",
+          "Did you use the university referencing guide?",
+          "How did you organize your report?"
+        ]
+      }
+    }
+  },
+  
+  "authenticity_indicators": {
+    "positive_markers": [
+      "Personal pronouns with observations (I noticed, I found)",
+      "Research journey described",
+      "Difficulty or challenge mentioned",
+      "Informal language or quirks",
+      "Site visit or primary research",
+      "Specific local knowledge",
+      "Genuine questions or uncertainties",
+      "Evolution of thinking described",
+      "Mistakes acknowledged",
+      "Personal connection to topic"
+    ],
+    "ai_pattern_indicators": [
+      "No personal voice",
+      "Publishing-level polish",
+      "Perfect structure",
+      "Generic examples",
+      "Too pedagogical tone",
+      "No quirks or personality",
+      "Exhaustive coverage",
+      "Missing research process description",
+      "No limitations mentioned",
+      "Perfect confidence throughout",
+      "Generic stakeholder lists",
+      "Template-like phrasing",
+      "No geographic specificity",
+      "Uniform sentence structure"
+    ],
+    "coaching_questions": [
+      "Walk me through your research process for this assignment.",
+      "What was most challenging about finding information?",
+      "Did you discover anything surprising in their reports?",
+      "How did you decide which practices to focus on?",
+      "Tell me about how you chose this organization."
+    ]
+  },
+  
+  "grade_boundaries": {
+    "A_plus": {"min": 90, "max": 100},
+    "A": {"min": 85, "max": 89},
+    "A_minus": {"min": 80, "max": 84},
+    "B_plus": {"min": 75, "max": 79},
+    "B": {"min": 70, "max": 74},
+    "B_minus": {"min": 65, "max": 69},
+    "C_plus": {"min": 60, "max": 64},
+    "C": {"min": 55, "max": 59},
+    "C_minus": {"min": 50, "max": 54},
+    "D": {"min": 40, "max": 49},
+    "E": {"min": 0, "max": 39}
+  },
+  
+  "coaching_principles": {
+    "absolute_boundaries": [
+      "NEVER reveal grades, scores, or predictions",
+      "NEVER mention AI detection or authenticity scoring",
+      "NEVER use assessment language (weak, poor, fails)",
+      "NEVER reveal the backend analysis structure"
+    ],
+    "coaching_approach": [
+      "Use Socratic questioning to guide discovery",
+      "Acknowledge strengths before addressing development areas",
+      "Focus on 1-2 development areas per conversation turn",
+      "Ask curious questions, not interrogative ones",
+      "Convert all feedback to coaching language"
+    ],
+    "voice_optimization": [
+      "Speak numbers as words (2024 → twenty twenty-four)",
+      "Keep responses under 3 sentences when possible",
+      "Use natural conversational markers",
+      "Avoid academic jargon in spoken responses"
+    ]
+  }
+}

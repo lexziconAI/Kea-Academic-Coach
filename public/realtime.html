@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kea - Real-time Voice Coach</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 100%);
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    h1 { margin-bottom: 0.5rem; color: #7ed957; }
+    .subtitle { color: #aaa; margin-bottom: 2rem; text-align: center; }
+    .card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 1rem;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #666;
+      transition: background 0.3s;
+    }
+    .dot.disconnected { background: #e74c3c; }
+    .dot.connecting { background: #f5a623; animation: pulse 1s infinite; }
+    .dot.ready { background: #7ed957; }
+    .dot.listening { background: #3498db; animation: pulse 0.5s infinite; }
+    .dot.speaking { background: #9b59b6; animation: pulse 0.3s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.15); }
+    }
+    
+    .visualizer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 60px;
+      margin-bottom: 1rem;
+    }
+    .bar {
+      width: 6px;
+      background: linear-gradient(180deg, #7ed957, #4a8c2a);
+      border-radius: 3px;
+      transition: height 0.05s ease;
+    }
+    
+    button {
+      background: #7ed957;
+      color: #1a472a;
+      border: none;
+      padding: 1.2rem 2rem;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+    button:hover:not(:disabled) { background: #9aef73; transform: scale(1.02); }
+    button:disabled { background: #444; color: #888; cursor: not-allowed; }
+    button.active { background: #e74c3c; color: white; }
+    
+    .transcript {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-size: 0.95rem;
+    }
+    .log-entry { margin-bottom: 1rem; line-height: 1.5; }
+    .log-entry.user { color: #3498db; border-left: 3px solid #3498db; padding-left: 10px; }
+    .log-entry.kea { color: #7ed957; border-left: 3px solid #7ed957; padding-left: 10px; }
+    .log-entry.system { color: #666; font-size: 0.8rem; text-align: center; }
+    .log-entry.error { color: #e74c3c; }
+    .hint { text-align: center; color: #888; font-size: 0.85rem; margin-top: 0.5rem; }
+    
+    .metrics {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+    .metric { background: rgba(0,0,0,0.2); padding: 0.25rem 0.5rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>🥝 Kea</h1>
+  <p class="subtitle">Real-time Academic Coaching<br>OpenAI Realtime + Groq Brain</p>
+
+  <div class="card">
+    <div class="status">
+      <div class="dot disconnected" id="statusDot"></div>
+      <span id="statusText">Disconnected</span>
+    </div>
+    
+    <div class="visualizer" id="visualizer"></div>
+    
+    <button id="startBtn">🎤 Start Session</button>
+    <p class="hint" id="hint">Click to connect and start talking</p>
+    
+    <div class="metrics" id="metrics" style="display: none;">
+      <span class="metric" id="metricLatency">Latency: --</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom: 1rem;">Conversation</h3>
+    <div class="transcript" id="transcript">
+      <div class="log-entry system">Click Start Session to begin. Just speak naturally - Kea will respond!</div>
+    </div>
+  </div>
+
+  <script>
+    // DOM Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const startBtn = document.getElementById('startBtn');
+    const hint = document.getElementById('hint');
+    const transcript = document.getElementById('transcript');
+    const visualizer = document.getElementById('visualizer');
+    const metricsDiv = document.getElementById('metrics');
+    const metricLatency = document.getElementById('metricLatency');
+
+    // State
+    let ws = null;
+    let audioContext = null;
+    let playbackContext = null; // Separate context for playback
+    let mediaStream = null;
+    let audioWorklet = null;
+    let micSource = null;
+    let gainNode = null;
+    let isConnected = false;
+    let isSpeaking = false;
+
+    // Audio playback queue
+    let audioQueue = [];
+    let isPlaying = false;
+    let playbackEndTimer = null;
+
+    // Create visualizer bars
+    const NUM_BARS = 20;
+    for (let i = 0; i < NUM_BARS; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.style.height = '4px';
+      visualizer.appendChild(bar);
+    }
+    const bars = visualizer.querySelectorAll('.bar');
+
+    function log(msg, type = 'system') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      
+      if (type === 'user') {
+        entry.innerHTML = `<strong>You:</strong> ${msg}`;
+      } else if (type === 'kea') {
+        entry.innerHTML = `<strong>Kea:</strong> ${msg}`;
+      } else {
+        entry.textContent = msg;
+      }
+      
+      transcript.appendChild(entry);
+      transcript.scrollTop = transcript.scrollHeight;
+    }
+
+    function setStatus(status, text) {
+      statusDot.className = 'dot ' + status;
+      statusText.textContent = text || status;
+    }
+
+    // PCM16 Audio Capture using AudioWorklet
+    async function startAudioCapture() {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+      
+      // Load audio worklet for PCM16 capture
+      await audioContext.audioWorklet.addModule(URL.createObjectURL(new Blob([`
+        class PCM16Processor extends AudioWorkletProcessor {
+          constructor() {
+            super();
+            this.buffer = [];
+          }
+          
+          process(inputs, outputs, parameters) {
+            const input = inputs[0];
+            if (input && input[0]) {
+              const samples = input[0];
+              // Convert float32 to int16
+              const int16 = new Int16Array(samples.length);
+              for (let i = 0; i < samples.length; i++) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+              }
+              // Send to main thread
+              this.port.postMessage(int16.buffer, [int16.buffer]);
+            }
+            return true;
+          }
+        }
+        registerProcessor('pcm16-processor', PCM16Processor);
+      `], { type: 'application/javascript' })));
+
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 24000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      micSource = audioContext.createMediaStreamSource(mediaStream);
+      
+      // Gain node for soft-gating (reduce but don't mute during playback)
+      gainNode = audioContext.createGain();
+      gainNode.gain.value = 1.0;
+      
+      audioWorklet = new AudioWorkletNode(audioContext, 'pcm16-processor');
+      
+      audioWorklet.port.onmessage = (e) => {
+        // ALWAYS send audio - let OpenAI's VAD handle echo vs real speech
+        // This enables barge-in even while Kea is speaking
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          const base64 = arrayBufferToBase64(e.data);
+          ws.send(JSON.stringify({ type: 'audio', audio: base64 }));
+        }
+      };
+
+      micSource.connect(gainNode);
+      gainNode.connect(audioWorklet);
+      
+      // Visualizer (from original source, not gain-adjusted)
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      micSource.connect(analyser);
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      function updateVisualizer() {
+        if (!isConnected) {
+          bars.forEach(bar => bar.style.height = '4px');
+          return;
+        }
+        analyser.getByteFrequencyData(dataArray);
+        const step = Math.floor(dataArray.length / NUM_BARS);
+        bars.forEach((bar, i) => {
+          const value = dataArray[i * step] || 0;
+          const height = Math.max(4, (value / 255) * 50);
+          bar.style.height = `${height}px`;
+        });
+        requestAnimationFrame(updateVisualizer);
+      }
+      updateVisualizer();
+    }
+
+    // Soft-gate: Reduce mic gain during playback to help with echo
+    // But don't mute completely - allow barge-in
+    function softGate(speaking) {
+      if (gainNode) {
+        // When Kea speaks: reduce gain to 0.3 (helps AEC, but allows loud barge-in)
+        // When listening: full gain
+        gainNode.gain.setTargetAtTime(speaking ? 0.3 : 1.0, audioContext.currentTime, 0.1);
+      }
+    }
+
+    // Play PCM16 audio from Realtime - with queue to handle streaming chunks
+    // Use SEPARATE audio context to help browser's AEC distinguish playback from mic
+    async function playAudio(base64) {
+      audioQueue.push(base64);
+      if (!isPlaying) {
+        playNextChunk();
+      }
+    }
+    
+    async function playNextChunk() {
+      if (audioQueue.length === 0) {
+        playbackEndTimer = setTimeout(() => {
+          if (audioQueue.length === 0) {
+            isPlaying = false;
+          } else {
+            playNextChunk();
+          }
+        }, 100);
+        return;
+      }
+      
+      isPlaying = true;
+      if (playbackEndTimer) {
+        clearTimeout(playbackEndTimer);
+        playbackEndTimer = null;
+      }
+      
+      const base64 = audioQueue.shift();
+      const arrayBuffer = base64ToArrayBuffer(base64);
+      const int16Array = new Int16Array(arrayBuffer);
+      
+      // Convert Int16 to Float32 for Web Audio
+      const float32Array = new Float32Array(int16Array.length);
+      for (let i = 0; i < int16Array.length; i++) {
+        float32Array[i] = int16Array[i] / 32768;
+      }
+      
+      // Use playback context (separate from capture context)
+      if (!playbackContext) {
+        playbackContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+      }
+      
+      const audioBuffer = playbackContext.createBuffer(1, float32Array.length, 24000);
+      audioBuffer.getChannelData(0).set(float32Array);
+      
+      const source = playbackContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(playbackContext.destination);
+      
+      source.onended = () => {
+        playNextChunk();
+      };
+      
+      source.start();
+    }
+    
+    // Clear audio queue (for interruption)
+    function clearAudioQueue() {
+      audioQueue = [];
+      isPlaying = false;
+      if (playbackEndTimer) {
+        clearTimeout(playbackEndTimer);
+        playbackEndTimer = null;
+      }
+    }
+
+    // Connect to relay
+    async function connect() {
+      setStatus('connecting', 'Connecting...');
+      
+      try {
+        await startAudioCapture();
+        
+        const wsUrl = `ws://${location.host}/relay`;
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => {
+          log('Connected to server', 'system');
+          ws.send(JSON.stringify({ type: 'start' }));
+        };
+        
+        ws.onmessage = (e) => {
+          const msg = JSON.parse(e.data);
+          handleMessage(msg);
+        };
+        
+        ws.onclose = () => {
+          setStatus('disconnected', 'Disconnected');
+          isConnected = false;
+          startBtn.textContent = '🎤 Start Session';
+          startBtn.classList.remove('active');
+          hint.textContent = 'Click to reconnect';
+          log('Disconnected', 'system');
+        };
+        
+        ws.onerror = (err) => {
+          log('Connection error', 'error');
+          setStatus('disconnected', 'Error');
+        };
+        
+      } catch (err) {
+        log(`Error: ${err.message}`, 'error');
+        setStatus('disconnected', 'Error');
+      }
+    }
+
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'started':
+          isConnected = true;
+          setStatus('ready', 'Listening...');
+          startBtn.textContent = '⏹️ Stop Session';
+          startBtn.classList.add('active');
+          hint.textContent = 'Just speak naturally - Kea will respond when you pause';
+          metricsDiv.style.display = 'flex';
+          log(`Session started (connected in ${msg.connectTime}ms)`, 'system');
+          break;
+          
+        case 'transcript':
+          log(msg.text, 'user');
+          setStatus('listening', 'Processing...');
+          break;
+          
+        case 'response':
+          log(msg.text, 'kea');
+          break;
+          
+        case 'audio':
+          if (!isSpeaking) {
+            // First audio chunk - apply soft gate and update UI
+            isSpeaking = true;
+            softGate(true); // Reduce mic gain (but don't mute - allow barge-in)
+            setStatus('speaking', 'Kea is speaking...');
+          }
+          if (msg.audio) {
+            playAudio(msg.audio);
+          }
+          break;
+          
+        case 'audio_done':
+          isSpeaking = false;
+          softGate(false); // Restore full mic gain
+          setStatus('ready', 'Listening...');
+          break;
+          
+        case 'interrupted':
+          isSpeaking = false;
+          clearAudioQueue(); // Stop any pending audio
+          softGate(false); // Restore full mic gain
+          setStatus('ready', 'Listening...');
+          log('(interrupted)', 'system');
+          break;
+          
+        case 'error':
+          log(`Error: ${msg.message}`, 'error');
+          break;
+          
+        case 'stopped':
+          isConnected = false;
+          setStatus('disconnected', 'Session ended');
+          break;
+      }
+    }
+
+    function disconnect() {
+      if (ws) {
+        ws.send(JSON.stringify({ type: 'stop' }));
+        ws.close();
+      }
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+      }
+      if (audioContext) {
+        audioContext.close();
+      }
+      isConnected = false;
+      isSpeaking = false;
+    }
+
+    // Toggle
+    startBtn.onclick = () => {
+      if (isConnected) {
+        disconnect();
+      } else {
+        connect();
+      }
+    };
+
+    // Utils
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+  </script>
+</body>
+</html>

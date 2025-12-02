@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kea V4 - Interruptible Voice Coach</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 100%);
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    h1 { margin-bottom: 0.5rem; color: #7ed957; }
+    .subtitle { color: #aaa; margin-bottom: 2rem; text-align: center; }
+    .card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 1rem;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #666;
+      transition: background 0.3s;
+    }
+    .dot.disconnected { background: #e74c3c; }
+    .dot.connecting { background: #f5a623; animation: pulse 1s infinite; }
+    .dot.ready { background: #7ed957; }
+    .dot.recording { background: #e74c3c; animation: pulse 0.5s infinite; }
+    .dot.processing { background: #3498db; animation: pulse 0.5s infinite; }
+    .dot.speaking { background: #9b59b6; animation: pulse 0.3s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.15); }
+    }
+
+    .interrupt-btn {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: none;
+    }
+    .interrupt-btn.visible { display: block; }
+    .interrupt-btn:hover { background: #c0392b; }
+
+    .progress-bar {
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #7ed957, #9aef73);
+      width: 0%;
+      transition: width 0.1s;
+    }
+
+    .heard-text {
+      font-size: 0.85rem;
+      color: #aaa;
+      font-style: italic;
+      margin-bottom: 1rem;
+      min-height: 1.5rem;
+    }
+
+    .record-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .record-btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: #7ed957;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      transition: all 0.2s;
+    }
+    .record-btn:hover:not(:disabled) { background: #9aef73; transform: scale(1.05); }
+    .record-btn:disabled { background: #444; cursor: not-allowed; }
+    .record-btn.active { background: #e74c3c; }
+    .record-btn.listening { background: #9b59b6; animation: pulse 1s infinite; }
+    .record-btn.recording { background: #3498db; animation: pulse 0.5s infinite; }
+    .hint { text-align: center; color: #888; font-size: 0.85rem; margin-top: 0.5rem; }
+    
+    .voice-level {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      margin-top: 1rem;
+      overflow: hidden;
+    }
+    .voice-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7ed957, #3498db);
+      border-radius: 3px;
+      transition: width 0.05s;
+    }
+    .voice-bar.speaking { background: linear-gradient(90deg, #9b59b6, #e74c3c); }
+
+    .transcript {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .log-entry { margin-bottom: 1rem; line-height: 1.5; }
+    .log-entry.user { color: #3498db; border-left: 3px solid #3498db; padding-left: 10px; }
+    .log-entry.kea { color: #7ed957; border-left: 3px solid #7ed957; padding-left: 10px; }
+    .log-entry.kea.interrupted { border-left-color: #f5a623; }
+    .log-entry.system { color: #666; font-size: 0.8rem; text-align: center; }
+    .log-entry.error { color: #e74c3c; }
+    .interrupt-tag {
+      display: inline-block;
+      background: rgba(245, 166, 35, 0.2);
+      color: #f5a623;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      margin-left: 0.5rem;
+    }
+
+    .metrics {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+    .metric { background: rgba(0,0,0,0.2); padding: 0.25rem 0.5rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>🥝 Kea V4</h1>
+  <p class="subtitle">Interruptible Voice Coach<br>Groq STT + Brain • OpenAI TTS</p>
+
+  <div class="card">
+    <div class="status">
+      <div class="status-left">
+        <div class="dot disconnected" id="statusDot"></div>
+        <span id="statusText">Disconnected</span>
+      </div>
+      <button class="interrupt-btn" id="interruptBtn">⏹️ Stop</button>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="heard-text" id="heardText"></div>
+
+    <div class="record-area">
+      <button class="record-btn" id="recordBtn" disabled>▶️</button>
+      <p class="hint" id="hint">Connecting...</p>
+      <div class="voice-level" id="voiceLevel">
+        <div class="voice-bar" id="voiceBar"></div>
+      </div>
+    </div>
+
+    <div class="metrics" id="metrics" style="display: none;">
+      <span class="metric" id="metricSTT">STT: --</span>
+      <span class="metric" id="metricBrain">Brain: --</span>
+      <span class="metric" id="metricTTS">TTS: --</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom: 1rem;">Conversation</h3>
+    <div class="transcript" id="transcript">
+      <div class="log-entry system">Click Start and speak naturally. Kea listens when you talk!</div>
+    </div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════
+    // DOM Elements
+    // ═══════════════════════════════════════════════════════════════════════
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const interruptBtn = document.getElementById('interruptBtn');
+    const progressFill = document.getElementById('progressFill');
+    const heardText = document.getElementById('heardText');
+    const recordBtn = document.getElementById('recordBtn');
+    const hint = document.getElementById('hint');
+    const transcript = document.getElementById('transcript');
+    const metricsDiv = document.getElementById('metrics');
+    const metricSTT = document.getElementById('metricSTT');
+    const metricBrain = document.getElementById('metricBrain');
+    const metricTTS = document.getElementById('metricTTS');
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // State
+    // ═══════════════════════════════════════════════════════════════════════
+    let ws = null;
+    let isConnected = false;
+    let isSessionActive = false;
+    let isRecording = false;
+    let isSpeaking = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+
+    // Audio playback
+    let audioContext = null;
+    let audioQueue = [];
+    let isPlaying = false;
+    let currentChunkIndex = -1;
+    let playbackStartTime = 0;
+
+    // VAD for continuous listening
+    let vadStream = null;
+    let vadAudioContext = null;
+    let vadAnalyser = null;
+    let vadInterval = null;
+    let voiceBar = null;
+    
+    // VAD speech detection
+    let speechStartTime = null;
+    let silenceStartTime = null;
+    let bargeInStartTime = null;
+    let ttsStartTime = null;  // Track when TTS started for grace period
+    
+    const SPEECH_THRESHOLD = 0.02;       // Volume threshold to detect user speech
+    const BARGEIN_THRESHOLD = 0.08;      // MUCH higher threshold during TTS (to avoid picking up speaker)
+    const SILENCE_TIMEOUT = 1200;        // ms of silence to end recording
+    const MIN_SPEECH_DURATION = 200;     // ms minimum speech before recording
+    const MIN_BARGEIN_DURATION = 400;    // ms sustained speech required to interrupt
+    const TTS_GRACE_PERIOD = 500;        // ms to ignore VAD after TTS starts (let echo cancellation settle)
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Logging
+    // ═══════════════════════════════════════════════════════════════════════
+    function log(msg, type = 'system') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+
+      if (type === 'user') {
+        entry.innerHTML = `<strong>You:</strong> ${msg}`;
+      } else if (type === 'kea') {
+        entry.innerHTML = `<strong>Kea:</strong> ${msg}`;
+      } else if (type === 'kea-interrupted') {
+        entry.className = 'log-entry kea interrupted';
+        entry.innerHTML = `<strong>Kea:</strong> ${msg}<span class="interrupt-tag">interrupted</span>`;
+      } else {
+        entry.textContent = msg;
+      }
+
+      transcript.appendChild(entry);
+      transcript.scrollTop = transcript.scrollHeight;
+    }
+
+    function setStatus(status, text) {
+      statusDot.className = 'dot ' + status;
+      statusText.textContent = text || status;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Audio Playback with Chunk Tracking
+    // ═══════════════════════════════════════════════════════════════════════
+    async function initAudio() {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        sampleRate: 24000
+      });
+    }
+
+    function enqueueChunk(chunkData) {
+      audioQueue.push(chunkData);
+      if (!isPlaying) {
+        playNextChunk();
+      }
+    }
+
+    async function playNextChunk() {
+      if (audioQueue.length === 0) {
+        isPlaying = false;
+        if (currentChunkIndex >= 0 && !interrupted) {
+          // All chunks played - notify server
+          ws.send(JSON.stringify({ type: 'speech_finished' }));
+        }
+        return;
+      }
+
+      isPlaying = true;
+      const chunk = audioQueue.shift();
+      currentChunkIndex = chunk.chunkIndex;
+      playbackStartTime = Date.now();
+
+      // Update UI
+      heardText.textContent = `"${chunk.approximateText || ''}..."`;
+      progressFill.style.width = `${(chunk.progress || 0) * 100}%`;
+
+      try {
+        // Decode base64 to PCM16
+        const binaryString = atob(chunk.audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        // Create AudioBuffer from PCM16
+        const audioBuffer = audioContext.createBuffer(1, bytes.length / 2, 24000);
+        const channelData = audioBuffer.getChannelData(0);
+        
+        for (let i = 0; i < bytes.length / 2; i++) {
+          const sample = bytes[i * 2] | (bytes[i * 2 + 1] << 8);
+          channelData[i] = sample < 32768 ? sample / 32768 : (sample - 65536) / 32768;
+        }
+
+        // Play
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        
+        source.onended = () => {
+          // Confirm chunk played
+          ws.send(JSON.stringify({ type: 'chunk_played', chunkIndex: chunk.chunkIndex }));
+          playNextChunk();
+        };
+
+        source.start();
+
+      } catch (error) {
+        console.error('Audio playback error:', error);
+        playNextChunk();
+      }
+    }
+
+    let interrupted = false;
+
+    function interruptPlayback() {
+      if (!isSpeaking) return;
+
+      interrupted = true;
+      const playbackPositionMs = Date.now() - playbackStartTime;
+
+      // Stop audio
+      audioQueue = [];
+      isPlaying = false;
+
+      // Notify server
+      ws.send(JSON.stringify({
+        type: 'interrupt',
+        chunkIndex: currentChunkIndex,
+        playbackPositionMs
+      }));
+
+      console.log(`Interrupted at chunk ${currentChunkIndex}, position ${playbackPositionMs}ms`);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Voice Activity Detection (for barge-in)
+    // ═══════════════════════════════════════════════════════════════════════
+    async function startVAD() {
+      try {
+        vadStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 }
+        });
+
+        vadAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = vadAudioContext.createMediaStreamSource(vadStream);
+        vadAnalyser = vadAudioContext.createAnalyser();
+        vadAnalyser.fftSize = 256;
+        source.connect(vadAnalyser);
+        
+        voiceBar = document.getElementById('voiceBar');
+
+        vadInterval = setInterval(() => {
+          if (!isSessionActive) return;
+
+          const dataArray = new Uint8Array(vadAnalyser.frequencyBinCount);
+          vadAnalyser.getByteFrequencyData(dataArray);
+          
+          const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          const volume = average / 255;
+
+          // Update voice level indicator
+          voiceBar.style.width = `${Math.min(volume * 500, 100)}%`;
+          voiceBar.classList.toggle('speaking', isSpeaking);
+
+          // If Kea is speaking, check for barge-in
+          // Use MUCH higher threshold + require sustained speech + grace period
+          if (isSpeaking) {
+            // Grace period - ignore VAD for first 500ms after TTS starts
+            if (ttsStartTime && (Date.now() - ttsStartTime < TTS_GRACE_PERIOD)) {
+              return;
+            }
+            
+            if (volume > BARGEIN_THRESHOLD) {
+              if (!bargeInStartTime) {
+                bargeInStartTime = Date.now();
+                console.log('VAD: Potential barge-in started, volume:', volume.toFixed(3));
+              } else if (Date.now() - bargeInStartTime > MIN_BARGEIN_DURATION) {
+                // Sustained loud speech - this is a real interrupt
+                console.log('VAD: Confirmed barge-in after', MIN_BARGEIN_DURATION, 'ms, volume:', volume.toFixed(3));
+                bargeInStartTime = null;
+                interruptPlayback();
+              }
+            } else {
+              // Volume dropped - reset barge-in detection
+              bargeInStartTime = null;
+            }
+            return;
+          }
+
+          // If not speaking, detect user speech
+          if (!isSpeaking && !isRecording) {
+            if (volume > SPEECH_THRESHOLD) {
+              if (!speechStartTime) {
+                speechStartTime = Date.now();
+              } else if (Date.now() - speechStartTime > MIN_SPEECH_DURATION) {
+                // Start recording after sustained speech
+                startRecording();
+                speechStartTime = null;
+                silenceStartTime = null;
+              }
+            } else {
+              speechStartTime = null;
+            }
+          }
+
+          // If recording, detect end of speech
+          if (isRecording) {
+            if (volume > SPEECH_THRESHOLD) {
+              silenceStartTime = null;
+            } else {
+              if (!silenceStartTime) {
+                silenceStartTime = Date.now();
+              } else if (Date.now() - silenceStartTime > SILENCE_TIMEOUT) {
+                // End recording after silence
+                stopRecording();
+                silenceStartTime = null;
+              }
+            }
+          }
+        }, 50);
+
+        console.log('VAD started successfully');
+
+      } catch (error) {
+        console.error('VAD failed:', error);
+        log(`Microphone error: ${error.message}`, 'error');
+      }
+    }
+
+    function stopVAD() {
+      if (vadInterval) {
+        clearInterval(vadInterval);
+        vadInterval = null;
+      }
+      if (vadStream) {
+        vadStream.getTracks().forEach(t => t.stop());
+        vadStream = null;
+      }
+      if (vadAudioContext) {
+        vadAudioContext.close();
+        vadAudioContext = null;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Recording
+    // ═══════════════════════════════════════════════════════════════════════
+    async function startRecording() {
+      if (isRecording) return;
+      
+      // If Kea is speaking, interrupt first
+      if (isSpeaking) {
+        interruptPlayback();
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+        });
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          
+          // Only send if we have meaningful audio (> 0.5 seconds)
+          if (audioChunks.length > 0) {
+            const arrayBuffer = await blob.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'audio', audio: base64, format: 'webm' }));
+            }
+          }
+
+          stream.getTracks().forEach(t => t.stop());
+        };
+
+        mediaRecorder.start(100); // Collect data every 100ms
+        isRecording = true;
+        recordBtn.classList.add('recording');
+        recordBtn.textContent = '🔴';
+        setStatus('recording', 'Listening...');
+        hint.textContent = 'Listening...';
+
+      } catch (error) {
+        console.error('Recording failed:', error);
+        log(`Recording error: ${error.message}`, 'error');
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        recordBtn.classList.remove('recording');
+        recordBtn.textContent = '⏸️';
+        setStatus('processing', 'Processing...');
+        hint.textContent = 'Processing...';
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // Session Control
+    // ═══════════════════════════════════════════════════════════════════════
+    async function toggleSession() {
+      if (!isConnected) return;
+      
+      if (isSessionActive) {
+        // Stop session
+        isSessionActive = false;
+        stopVAD();
+        if (isRecording) stopRecording();
+        recordBtn.textContent = '▶️';
+        recordBtn.classList.remove('active', 'listening', 'recording');
+        hint.textContent = 'Click to start';
+        setStatus('ready', 'Ready');
+      } else {
+        // Start session
+        isSessionActive = true;
+        await startVAD();
+        recordBtn.textContent = '⏸️';
+        recordBtn.classList.add('active');
+        hint.textContent = 'Speak when ready...';
+        setStatus('ready', 'Listening for speech...');
+        log('Session started - speak naturally!', 'system');
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // WebSocket
+    // ═══════════════════════════════════════════════════════════════════════
+    function connect() {
+      setStatus('connecting', 'Connecting...');
+
+      ws = new WebSocket(`ws://${location.host}/relay`);
+
+      ws.onopen = () => {
+        log('Connected to Kea', 'system');
+        initAudio();
+      };
+
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        handleMessage(data);
+      };
+
+      ws.onclose = () => {
+        setStatus('disconnected', 'Disconnected');
+        isConnected = false;
+        isSessionActive = false;
+        recordBtn.disabled = true;
+        hint.textContent = 'Reconnecting...';
+        stopVAD();
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = (err) => {
+        log('Connection error', 'error');
+        setStatus('disconnected', 'Error');
+      };
+    }
+
+    function handleMessage(data) {
+      switch (data.type) {
+        case 'connected':
+          isConnected = true;
+          setStatus('ready', 'Ready');
+          recordBtn.disabled = false;
+          hint.textContent = 'Click ▶️ to start';
+          metricsDiv.style.display = 'flex';
+          break;
+
+        case 'status':
+          if (data.stage === 'transcribing') setStatus('processing', 'Processing speech...');
+          else if (data.stage === 'thinking') setStatus('processing', 'Thinking...');
+          else if (data.stage === 'synthesizing') setStatus('processing', 'Preparing voice...');
+          else if (data.stage === 'speaking') {
+            setStatus('speaking', 'Speaking...');
+            isSpeaking = true;
+            ttsStartTime = Date.now();  // Start grace period for VAD
+            bargeInStartTime = null;    // Reset barge-in detection
+            interrupted = false;
+            interruptBtn.classList.add('visible');
+            hint.textContent = 'Speak loudly to interrupt';
+          }
+          break;
+
+        case 'transcript':
+          log(data.text, 'user');
+          break;
+
+        case 'response':
+          // Response text received, audio chunks incoming
+          break;
+
+        case 'audio_chunk':
+          enqueueChunk(data);
+          break;
+
+        case 'speech_complete':
+          isSpeaking = false;
+          ttsStartTime = null;
+          bargeInStartTime = null;
+          interruptBtn.classList.remove('visible');
+          heardText.textContent = '';
+          progressFill.style.width = '0%';
+          if (isSessionActive) {
+            setStatus('ready', 'Listening for speech...');
+            hint.textContent = 'Speak when ready...';
+          } else {
+            setStatus('ready', 'Ready');
+            hint.textContent = 'Click ▶️ to start';
+          }
+          if (data.timings) {
+            metricSTT.textContent = `STT: ${data.timings.stt}ms`;
+            metricBrain.textContent = `Brain: ${data.timings.brain}ms`;
+            metricTTS.textContent = `TTS: ${data.timings.tts}ms`;
+          }
+          break;
+
+        case 'response_committed':
+          // Full response was heard and stored
+          break;
+
+        case 'interrupted':
+          isSpeaking = false;
+          ttsStartTime = null;
+          bargeInStartTime = null;
+          interruptBtn.classList.remove('visible');
+          heardText.textContent = '';
+          progressFill.style.width = '0%';
+          
+          if (data.heardText) {
+            log(`${data.heardText} (${data.heardPercentage}% heard)`, 'kea-interrupted');
+          }
+          log('(You interrupted)', 'system');
+          
+          if (isSessionActive) {
+            setStatus('ready', 'Listening for speech...');
+            hint.textContent = 'Speak when ready...';
+          } else {
+            setStatus('ready', 'Ready');
+          }
+          break;
+
+        case 'error':
+          log(`Error: ${data.message}`, 'error');
+          isSpeaking = false;
+          if (isSessionActive) {
+            setStatus('ready', 'Listening for speech...');
+          } else {
+            setStatus('ready', 'Ready');
+          }
+          break;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Event Listeners
+    // ═══════════════════════════════════════════════════════════════════════
+    recordBtn.addEventListener('click', toggleSession);
+    interruptBtn.addEventListener('click', interruptPlayback);
+
+    // Start connection
+    connect();
+  </script>
+</body>
+</html>
