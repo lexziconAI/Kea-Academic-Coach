@@ -1433,6 +1433,13 @@
         const stateLabel = document.getElementById('state-label');
         
         // ═══════════════════════════════════════════════════════════════════════════
+        // MANUAL SEND MODE STATE (Global scope for button access)
+        // ═══════════════════════════════════════════════════════════════════════════
+        let manualSendMode = false; // When true, disable auto-send (user clicked Keep Listening)
+        let pendingAudio = null;    // Buffered audio waiting to be sent
+        let pendingDuration = 0;    // Duration of pending audio
+        
+        // ═══════════════════════════════════════════════════════════════════════════
         // REGISTRATION HANDLERS
         // ═══════════════════════════════════════════════════════════════════════════
         
@@ -1852,9 +1859,10 @@
                 // ENHANCED AUDIO GATE with Silence-Pending UI
                 // ═══════════════════════════════════════════════════════════════════════
                 
-                let pendingAudio = null;
-                let pendingDuration = 0;
-                let manualSendMode = false; // When true, disable auto-send (user clicked Keep Listening)
+                // Reset manual mode state for new session
+                manualSendMode = false;
+                pendingAudio = null;
+                pendingDuration = 0;
                 
                 // UI Elements for send control
                 const sendControlContainer = document.getElementById('send-control-container');
@@ -1929,30 +1937,67 @@
                 
                 // Extend button - keep listening, disable auto-send for this turn
                 extendBtn.addEventListener('click', () => {
-                    console.log('[UI] Extend clicked - entering manual send mode');
+                    console.log('[UI] Keep Listening clicked');
+                    
+                    // Defensive checks
+                    if (!audioGate) {
+                        console.error('[BUG] audioGate not initialized - cannot extend listening');
+                        return;
+                    }
+                    if (!isRecording) {
+                        console.warn('[UI] Not recording - ignoring Keep Listening click');
+                        return;
+                    }
+                    
+                    console.log('[UI] Entering manual send mode - auto-send disabled');
                     manualSendMode = true; // Disable auto-send
                     clearSilencePending();
                     updateGuardianState('listening');
-                    if (audioGate) {
-                        audioGate.disableAutoSend(); // Disable silence timeout completely
-                    }
+                    audioGate.disableAutoSend(); // Disable silence timeout completely
                 });
                 
                 // Send button - force flush and send whatever audio is currently buffered
                 sendBtn.addEventListener('click', () => {
-                    console.log('[UI] Send clicked - force flushing current audio');
+                    console.log('[UI] Send Now clicked');
+                    
+                    // Defensive checks
+                    if (!audioGate) {
+                        console.error('[BUG] audioGate not initialized - cannot send');
+                        alert('Please wait for the microphone to fully initialize.');
+                        return;
+                    }
+                    if (!isRecording) {
+                        console.warn('[UI] Not recording - ignoring Send Now click');
+                        alert('Please click the microphone button to start recording first.');
+                        return;
+                    }
+                    if (isSystemSpeaking) {
+                        console.warn('[UI] System is speaking - cannot send now');
+                        return;
+                    }
+                    
+                    console.log('[UI] Force flushing audio buffer');
                     manualSendMode = false; // Re-enable auto-send for next turn
                     clearSilencePending();
                     
                     // If we have pending audio from silence detection, use that
                     if (pendingAudio) {
+                        console.log('[UI] Sending pending audio:', pendingDuration, 'ms');
                         const audio = pendingAudio;
                         const duration = pendingDuration;
                         sendAudioToServer(audio, duration);
                     } 
                     // Otherwise force flush whatever is in the audio gate buffer
-                    else if (audioGate) {
-                        audioGate.forceFlush();
+                    else {
+                        console.log('[UI] Force flushing audio gate buffer');
+                        const flushedAudio = audioGate.forceFlush();
+                        if (flushedAudio && flushedAudio.audio && flushedAudio.audio.length > 0) {
+                            console.log('[UI] Flushed', flushedAudio.duration, 'ms of audio');
+                            sendAudioToServer(flushedAudio.audio, flushedAudio.duration);
+                        } else {
+                            console.log('[UI] No audio to send - buffer is empty');
+                            alert('No audio detected. Please speak into the microphone first.');
+                        }
                     }
                 });
 
