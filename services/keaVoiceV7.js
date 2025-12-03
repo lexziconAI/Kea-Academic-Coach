@@ -66,15 +66,43 @@ try {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════
+// GOOGLE CREDENTIALS SETUP (Support both file path and JSON string)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+// Handle Google credentials - supports both GOOGLE_APPLICATION_CREDENTIALS (file path)
+// and GOOGLE_CREDENTIALS_JSON (JSON string for Render/cloud deployments)
+let googleCredentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const googleCredentialsJson = process.env.GOOGLE_CREDENTIALS_JSON;
+
+if (googleCredentialsJson && !googleCredentialsPath) {
+    // Render deployment: Write JSON to temp file
+    const fs = require('fs');
+    const os = require('os');
+    const tempDir = os.tmpdir();
+    googleCredentialsPath = require('path').join(tempDir, 'google-credentials.json');
+    
+    try {
+        fs.writeFileSync(googleCredentialsPath, googleCredentialsJson);
+        process.env.GOOGLE_APPLICATION_CREDENTIALS = googleCredentialsPath;
+        console.log('✅ Google credentials written to temp file for Render deployment');
+    } catch (err) {
+        console.error('❌ Failed to write Google credentials:', err.message);
+    }
+} else if (googleCredentialsPath) {
+    console.log('✅ Using GOOGLE_APPLICATION_CREDENTIALS file:', googleCredentialsPath);
+} else {
+    console.warn('⚠️ No Google credentials configured - TTS/STT will not work');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════════════
 
 const CONFIG = {
     port: process.env.PORT || 16602,
     
-    // Credentials
-    google_credentials: process.env.GOOGLE_APPLICATION_CREDENTIALS || 
-        "C:\\Users\\regan\\ID SYSTEM\\Keys\\gen-lang-client-0219506317-e656a112d84b.json",
+    // Credentials (now set above, not needed in config)
+    google_credentials: process.env.GOOGLE_APPLICATION_CREDENTIALS,
     
     // TTS Settings (Google Chirp 3 HD - fastest natural voice)
     tts: {
@@ -107,9 +135,6 @@ const CONFIG = {
         maxSilenceMs: 4000             // Maximum silence timeout - 4 seconds for longer pauses
     }
 };
-
-// Set Google credentials
-process.env.GOOGLE_APPLICATION_CREDENTIALS = CONFIG.google_credentials;
 
 // ═══════════════════════════════════════════════════════════════════════════════════
 // ADAPTIVE VAD - Server-side with hedging detection
