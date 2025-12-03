@@ -225,6 +225,15 @@
             background: rgba(255, 255, 255, 0.02);
         }
         
+        .data-table tr.archived-row {
+            opacity: 0.6;
+            background: rgba(155, 89, 182, 0.05);
+        }
+        
+        .data-table tr.archived-row:hover {
+            opacity: 0.8;
+        }
+        
         .status-badge {
             padding: 4px 12px;
             border-radius: 20px;
@@ -260,6 +269,16 @@
         .action-btn.delete {
             background: rgba(233, 69, 96, 0.2);
             color: var(--kea-accent);
+        }
+        
+        .action-btn.archive {
+            background: rgba(243, 156, 18, 0.2);
+            color: var(--kea-gold);
+        }
+        
+        .action-btn.unarchive {
+            background: rgba(155, 89, 182, 0.2);
+            color: #9b59b6;
         }
         
         .action-btn:hover {
@@ -477,6 +496,10 @@
         <!-- Search -->
         <div class="search-bar">
             <input type="text" class="search-input" id="search-input" placeholder="Search by name, email, or organisation...">
+            <label style="display: flex; align-items: center; gap: 8px; color: #888; cursor: pointer;">
+                <input type="checkbox" id="show-archived" onchange="toggleArchived()" style="width: 18px; height: 18px;">
+                <span>Show Archived</span>
+            </label>
             <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
         </div>
         
@@ -626,14 +649,32 @@
                     throw new Error(data.error || 'Unknown server error');
                 }
                 
-                // Update stats
+                // Store all sessions for filtering
+                allSessions = data.sessions || [];
+                
+                // If showing archived, also fetch archived sessions
+                let sessionsToShow = allSessions;
+                if (showArchived) {
+                    try {
+                        const archivedResponse = await fetch('/api/admin/sessions/archived');
+                        const archivedData = await archivedResponse.json();
+                        if (archivedData.success && archivedData.sessions) {
+                            // Combine active and archived sessions
+                            sessionsToShow = [...allSessions, ...archivedData.sessions];
+                        }
+                    } catch (err) {
+                        console.error('Failed to load archived sessions:', err);
+                    }
+                }
+                
+                // Update stats (only count non-archived)
                 document.getElementById('stat-users').textContent = data.stats?.totalUsers ?? 0;
                 document.getElementById('stat-sessions').textContent = data.stats?.totalSessions ?? 0;
                 document.getElementById('stat-active').textContent = data.stats?.activeSessions ?? 0;
                 document.getElementById('stat-turns').textContent = data.stats?.totalTurns ?? 0;
                 
-                // Render sessions
-                renderSessions(data.sessions || []);
+                // Render sessions (with or without archived)
+                renderSessions(sessionsToShow);
                 
                 // Render users
                 renderUsers(data.users || []);
@@ -684,16 +725,23 @@
             }
             
             tbody.innerHTML = sessions.map(s => `
-                <tr>
+                <tr class="${s.archived ? 'archived-row' : ''}">
                     <td><code>${s.session_id?.substring(0, 20)}...</code></td>
                     <td>${s.user_name || 'Anonymous'}</td>
                     <td>${s.organisation_name || '-'}</td>
                     <td>${formatDate(s.started_at)}</td>
-                    <td><span class="status-badge status-${s.status}">${s.status}</span></td>
+                    <td>
+                        <span class="status-badge status-${s.status}">${s.status}</span>
+                        ${s.archived ? '<span class="status-badge" style="background: rgba(155,89,182,0.2); color: #9b59b6; margin-left: 5px;">📦 Archived</span>' : ''}
+                    </td>
                     <td>${s.turn_count || 0}</td>
                     <td>
                         <button class="action-btn view" onclick="viewSession('${s.session_id}')">👁️ View</button>
                         <button class="action-btn export" onclick="exportSession('${s.session_id}')">📥 Export</button>
+                        ${s.archived 
+                            ? `<button class="action-btn unarchive" onclick="unarchiveSession('${s.session_id}')">📤 Restore</button>`
+                            : `<button class="action-btn archive" onclick="archiveSession('${s.session_id}')">📦 Archive</button>`
+                        }
                     </td>
                 </tr>
             `).join('');
@@ -896,6 +944,59 @@
                 row.style.display = text.includes(query) ? '' : 'none';
             });
         });
+        
+        // Archive state
+        let showArchived = false;
+        let allSessions = [];
+        
+        function toggleArchived() {
+            showArchived = document.getElementById('show-archived').checked;
+            loadData();
+        }
+        
+        async function archiveSession(sessionId) {
+            if (!confirm('Archive this session? It will be hidden from the main view but data will be preserved.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/session/archive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    loadData(); // Refresh the list
+                } else {
+                    alert('Failed to archive session: ' + data.error);
+                }
+            } catch (err) {
+                console.error('Archive failed:', err);
+                alert('Failed to archive session');
+            }
+        }
+        
+        async function unarchiveSession(sessionId) {
+            try {
+                const response = await fetch('/api/admin/session/unarchive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    loadData(); // Refresh the list
+                } else {
+                    alert('Failed to restore session: ' + data.error);
+                }
+            } catch (err) {
+                console.error('Unarchive failed:', err);
+                alert('Failed to restore session');
+            }
+        }
         
         // Enter to login
         document.getElementById('admin-pass').addEventListener('keypress', (e) => {

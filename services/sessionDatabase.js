@@ -112,6 +112,17 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_turns_session ON conversation_turns(session_id);
 `);
 
+// Migration: Add archived column if it doesn't exist
+try {
+    db.exec(`ALTER TABLE sessions ADD COLUMN archived INTEGER DEFAULT 0`);
+    console.log('✅ Added archived column to sessions table');
+} catch (e) {
+    // Column already exists, ignore error
+    if (!e.message.includes('duplicate column')) {
+        console.log('ℹ️ Archived column already exists');
+    }
+}
+
 console.log('✅ Database tables created/verified');
 
 // ═══════════════════════════════════════════════════════════════════════════════════
@@ -188,7 +199,11 @@ const sessionStatements = {
     
     getByUser: db.prepare(`
         SELECT * FROM sessions WHERE user_id = ? ORDER BY started_at DESC LIMIT 20
-    `)
+    `),
+    
+    archive: db.prepare(`UPDATE sessions SET archived = 1 WHERE session_id = ?`),
+    unarchive: db.prepare(`UPDATE sessions SET archived = 0 WHERE session_id = ?`),
+    getArchived: db.prepare(`SELECT * FROM sessions WHERE archived = 1 ORDER BY started_at DESC`)
 };
 
 function createSession(sessionId, userId, responseLength = 'MEDIUM') {
@@ -379,8 +394,9 @@ function generateSessionReport(sessionId) {
 // ADMIN FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════════════
 
-// Get all sessions with user info (for admin dashboard)
-function getAllSessions() {
+// Get all sessions (for admin dashboard) - excludes archived by default
+function getAllSessions(includeArchived = false) {
+    const archivedFilter = includeArchived ? '' : 'WHERE (s.archived = 0 OR s.archived IS NULL)';
     return db.prepare(`
         SELECT 
             s.*,
@@ -389,8 +405,48 @@ function getAllSessions() {
             (SELECT COUNT(*) FROM conversation_turns WHERE session_id = s.session_id) as turn_count
         FROM sessions s
         LEFT JOIN users u ON s.user_id = u.id
+        ${archivedFilter}
         ORDER BY s.started_at DESC
     `).all();
+}
+
+// Get archived sessions only
+function getArchivedSessions() {
+    return db.prepare(`
+        SELECT 
+            s.*,
+            u.name as user_name,
+            u.email as user_email,
+            (SELECT COUNT(*) FROM conversation_turns WHERE session_id = s.session_id) as turn_count
+        FROM sessions s
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.archived = 1
+        ORDER BY s.started_at DESC
+    `).all();
+}
+
+// Archive a session (hide from main view but keep data)
+function archiveSession(sessionId) {
+    try {
+        sessionStatements.archive.run(sessionId);
+        console.log(`📦 Session archived: ${sessionId}`);
+        return true;
+    } catch (err) {
+        console.error('Failed to archive session:', err.message);
+        return false;
+    }
+}
+
+// Unarchive a session (restore to main view)
+function unarchiveSession(sessionId) {
+    try {
+        sessionStatements.unarchive.run(sessionId);
+        console.log(`📤 Session unarchived: ${sessionId}`);
+        return true;
+    } catch (err) {
+        console.error('Failed to unarchive session:', err.message);
+        return false;
+    }
 }
 
 // Get all users (for admin dashboard)
@@ -529,5 +585,10 @@ module.exports = {
     getAllUsers,
     getSessionDetails,
     deleteSession,
-    exportAllData
+    exportAllData,
+    
+    // Archive functions
+    archiveSession,
+    unarchiveSession,
+    getArchivedSessions
 };

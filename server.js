@@ -664,6 +664,77 @@ async function handleRequest(req, res) {
       return;
     }
     
+    // Archive session (hide from main view but keep data)
+    if (pathname === '/api/admin/session/archive' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          const { sessionId } = JSON.parse(body);
+          if (!sessionId) {
+            res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'sessionId required' }));
+            return;
+          }
+          
+          const archived = sessionDb.archiveSession(sessionId);
+          if (archived) {
+            res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, message: 'Session archived' }));
+          } else {
+            res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Failed to archive session' }));
+          }
+        } catch (err) {
+          res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+    
+    // Unarchive session (restore to main view)
+    if (pathname === '/api/admin/session/unarchive' && req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          const { sessionId } = JSON.parse(body);
+          if (!sessionId) {
+            res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'sessionId required' }));
+            return;
+          }
+          
+          const unarchived = sessionDb.unarchiveSession(sessionId);
+          if (unarchived) {
+            res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, message: 'Session unarchived' }));
+          } else {
+            res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Failed to unarchive session' }));
+          }
+        } catch (err) {
+          res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+    
+    // Get archived sessions
+    if (pathname === '/api/admin/sessions/archived' && req.method === 'GET') {
+      try {
+        const sessions = sessionDb.getArchivedSessions();
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, sessions }));
+      } catch (err) {
+        res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+      return;
+    }
+    
     // Export all data (admin only)
     if (pathname === '/api/admin/export' && req.method === 'GET') {
       try {
