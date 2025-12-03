@@ -201,13 +201,20 @@ async function handleRequest(req, res) {
         dbStats.error = e.message;
       }
       
+      // Check Google credentials
+      const googleCredsSet = !!(process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GOOGLE_CREDENTIALS_JSON);
+      
       res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         status: 'ok',
-        app: 'Kea Academic Coach',
+        app: 'Kea Academic Coach V7',
         port: PORT,
-        openai: !!OPENAI_API_KEY,
-        groq: !!GROQ_API_KEY,
+        // V7 Architecture: Groq (STT + Brain) + Google (TTS)
+        credentials: {
+          groq: !!GROQ_API_KEY,           // Required: STT (Whisper) + Brain (Llama)
+          google: googleCredsSet,          // Required: TTS (Chirp)
+          openai: !!OPENAI_API_KEY         // Optional: Legacy /api/voice endpoint only
+        },
         database: dbStats
       }));
       return;
