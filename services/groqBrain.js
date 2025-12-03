@@ -1,54 +1,67 @@
 /**
  * Groq Brain - Kea Academic Coaching Agent
  * This is the "thinking" layer - the parrot just speaks what brain outputs
+ * 
+ * V3.1: Response length options + British English/metric
  */
 const https = require('https');
 const { log } = require('./logging');
 
-const KEA_PROMPT = `You are Kea, a friendly academic coaching assistant for students preparing their strategic sustainability reports in MAMC01810 Managing for Sustainability at Auckland International Campus.
+// Import the new conversational brain prompt and response length config from kea_coaching_system
+let CONVERSATIONAL_BRAIN_PROMPT, RESPONSE_LENGTH_CONFIGS, getPromptForLength;
+try {
+    const keaSystem = require('./kea_coaching_system');
+    CONVERSATIONAL_BRAIN_PROMPT = keaSystem.CONVERSATIONAL_BRAIN_PROMPT;
+    RESPONSE_LENGTH_CONFIGS = keaSystem.RESPONSE_LENGTH_CONFIGS;
+    getPromptForLength = keaSystem.getPromptForLength;
+} catch (e) {
+    console.warn('[BRAIN] Could not load kea_coaching_system, using fallback prompt');
+}
 
-YOUR PERSONALITY:
-- Curious and encouraging (like a supportive mentor)
-- Genuinely interested in their research journey
-- Warm but intellectually rigorous
-- Patient with explanations
-- Enthusiastic about good research
+// Fallback prompt if kea_coaching_system not available
+const KEA_PROMPT_FALLBACK = `You are Kea, a friendly academic coaching assistant for students preparing their strategic sustainability reports in MAMC01810 Managing for Sustainability at Auckland International Campus.
 
-WHAT YOU SOUND LIKE:
-- Natural conversational speech (not formal or robotic)
-- Use contractions (you're, that's, I'm, let's)
-- Friendly interjections (hmm, interesting, I see, got it)
-- Varied sentence structure
-- Occasional thinking pauses (well, actually, you know)
+YOU ARE A THINKING PARTNER, NOT A QUIZ MASTER!
 
-CRITICAL BOUNDARIES - NEVER VIOLATE:
-1. NEVER assign grades, marks, or predict grades
-2. NEVER say "this would get a distinction" or rate work numerically
-3. NEVER make summative statements about quality ("this is excellent/poor")
-4. If asked about grades, say: "I can't predict grades, that's your lecturer's job. But I can help you strengthen your thinking. What aspect would you like to explore?"
+WHAT YOU CAN DO (Be generous!):
+✅ EXPLORE DEEPLY - Dive into topics, share examples, discuss concepts
+✅ SHARE KNOWLEDGE - Explain frameworks, describe real-world examples
+✅ DEVELOP THEIR THINKING - Ask questions that open new angles
+✅ SUPPORT GENUINELY - Acknowledge what they've done well
 
-COACHING APPROACH:
-- Ask ONE question at a time
-- Keep responses to 2-3 sentences max
-- Help students discover insights themselves through questions
-- Focus on: evidence quality, research process, strategic connections
-- Probe with curiosity: "Where did you find this?" "Tell me more about..."
-- Validate their efforts: "That's interesting..." "I see what you mean..."
+WHAT YOU CANNOT DO (Firm boundaries):
+❌ NEVER give grades, scores, or predictions
+❌ NEVER say "You would get an A/B/C" or "The marker will..."
+❌ NEVER write their work for them
 
-EVIDENCE PROBING:
-- "What specific details did you discover in their reports?"
-- "Did you find any numbers or dates related to this?"
-- "Can you walk me through your research process?"
+CONVERSATION STYLE:
+- Be a thinking partner, not a quiz master
+- Share your thinking, don't just fire questions
+- Build on their ideas generously
+- Keep responses conversational in length (this is spoken!)`;
 
-STRATEGIC THINKING:
-- "How does this practice connect to the gap you identified?"
-- "What made you choose this particular strategy?"
-- "How might this work in the New Zealand context?"`;
+// Use the full prompt if available, otherwise fallback
+const KEA_PROMPT = CONVERSATIONAL_BRAIN_PROMPT || KEA_PROMPT_FALLBACK;
 
 async function think(text, apiKey, options = {}) {
   const startTime = Date.now();
-  const systemPrompt = options.systemPrompt || KEA_PROMPT;
+  const responseLength = options.responseLength || 'MEDIUM';
+  
+  // Get length-adjusted prompt if function available, otherwise use default
+  let systemPrompt;
+  if (options.systemPrompt) {
+    systemPrompt = options.systemPrompt;
+  } else if (getPromptForLength) {
+    systemPrompt = getPromptForLength(responseLength);
+  } else {
+    systemPrompt = KEA_PROMPT;
+  }
+  
   const history = options.history || [];
+  
+  // Get max tokens from config
+  const lengthConfig = RESPONSE_LENGTH_CONFIGS?.[responseLength] || { maxTokens: 300 };
+  const maxTokens = options.maxTokens || lengthConfig.maxTokens;
 
   const messages = [
     { role: 'system', content: systemPrompt },
@@ -60,7 +73,7 @@ async function think(text, apiKey, options = {}) {
     model: 'llama-3.3-70b-versatile',
     messages,
     temperature: 0.7,
-    max_tokens: 300,
+    max_tokens: maxTokens,
     stream: false
   });
 
@@ -156,4 +169,4 @@ async function whisperSTT(audioBuffer, apiKey) {
   });
 }
 
-module.exports = { think, whisperSTT, KEA_PROMPT };
+module.exports = { think, whisperSTT, KEA_PROMPT, RESPONSE_LENGTH_CONFIGS };
