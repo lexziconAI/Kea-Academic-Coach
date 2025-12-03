@@ -53,8 +53,8 @@ const {
     formatAnalysisContextForTakeaways
 } = require('./services/kea_key_takeaways');
 
-// NEW: Session Database for persistence
-const sessionDb = require('./services/sessionDatabase');
+// NEW: Session Database for persistence (using safe wrapper that won't crash server)
+const sessionDb = require('./services/sessionDatabaseSafe');
 
 // NEW: Email Service for report delivery
 const emailService = require('./services/emailService');
@@ -188,14 +188,16 @@ async function handleRequest(req, res) {
     // Health check
     if (pathname === '/health') {
       // Get DB stats for health check
-      let dbStats = { users: 0, sessions: 0, dbPath: 'unknown' };
+      let dbStats = { users: 0, sessions: 0, dbPath: 'unknown', sqlite: false };
       try {
         const users = sessionDb.getAllUsers();
         const sessions = sessionDb.getAllSessions();
         dbStats = { 
           users: users.length, 
           sessions: sessions.length,
-          dbPath: process.env.NODE_ENV === 'production' ? 'render-disk' : 'local'
+          dbPath: process.env.NODE_ENV === 'production' ? 'render-disk' : 'local',
+          sqlite: sessionDb.isAvailable ? sessionDb.isAvailable() : true,
+          mode: sessionDb.isAvailable && !sessionDb.isAvailable() ? 'memory-fallback' : 'sqlite'
         };
       } catch (e) {
         dbStats.error = e.message;

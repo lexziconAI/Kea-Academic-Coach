@@ -8,7 +8,7 @@ services:
     region: oregon  # or singapore for APAC
     plan: starter   # Can upgrade to standard for production
     
-    buildCommand: npm install
+    buildCommand: npm install --build-from-source
     startCommand: node server.js
     
     healthCheckPath: /health

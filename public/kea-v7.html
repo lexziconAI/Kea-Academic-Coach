@@ -1958,6 +1958,17 @@
                     }
                 });
                 
+                // Timeout recovery for initializing state (prevents infinite spinner)
+                let initializingTimeout = null;
+                const INIT_TIMEOUT_MS = 30000; // 30 seconds max wait
+                
+                function clearInitializingTimeout() {
+                    if (initializingTimeout) {
+                        clearTimeout(initializingTimeout);
+                        initializingTimeout = null;
+                    }
+                }
+                
                 function sendAudioToServer(audio, duration) {
                     if (ws && ws.readyState === WebSocket.OPEN && !isSystemSpeaking) {
                         // Check if this is the first turn (no messages in chat yet)
@@ -1967,6 +1978,14 @@
                             // Show initializing state for first turn (loading coaching context)
                             updateState('initializing');
                             console.log('[GATE] First turn - showing initializing state');
+                            
+                            // Set timeout recovery to prevent infinite spinner
+                            clearInitializingTimeout();
+                            initializingTimeout = setTimeout(() => {
+                                console.error('[GATE] Server did not respond in 30s - recovering from initializing state');
+                                updateState('listening');
+                                addMessage('assistant', "I'm having trouble connecting to the AI. Please try speaking again, or check if the server is running.");
+                            }, INIT_TIMEOUT_MS);
                         } else {
                             // Show processing state for subsequent turns
                             updateGuardianState('processing');
@@ -2101,6 +2120,9 @@
         }
         
         function stopRecording() {
+            // Clear any pending timeout to prevent stale recovery actions
+            clearInitializingTimeout();
+            
             if (mediaStream) {
                 mediaStream.getTracks().forEach(track => track.stop());
             }
@@ -2110,6 +2132,11 @@
             if (audioWorkletNode) {
                 audioWorkletNode.disconnect();
             }
+            
+            // Reset manual mode state
+            manualSendMode = false;
+            pendingAudio = null;
+            pendingDuration = 0;
             
             isRecording = false;
             micBtn.classList.remove('active', 'speaking');
@@ -2155,6 +2182,8 @@
                         break;
                         
                     case 'response':
+                        // Clear initializing timeout - server is responding!
+                        clearInitializingTimeout();
                         addMessage('assistant', data.text);
                         conversationHistory.push({ role: 'assistant', text: data.text });
                         // Trigger summary update after each AI response
@@ -2164,6 +2193,8 @@
                         break;
                         
                     case 'audio_chunk':
+                        // Clear initializing timeout - server is responding!
+                        clearInitializingTimeout();
                         playAudioChunk(data.audio);
                         if (data.latency) {
                             latencyDisplay.innerText = `${data.latency}ms`;

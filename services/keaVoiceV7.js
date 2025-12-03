@@ -325,7 +325,8 @@ class KeaV7Engine {
         const session = this.getSession(sessionId);
         const startTime = Date.now();
         
-        console.log(`🔍 [${sessionId}] Processing Utterance...`);
+        console.log(`🔍 [${sessionId}] ════════════════════════════════════════`);
+        console.log(`🔍 [${sessionId}] Processing Utterance (Turn ${session.conversationHistory.length + 1})...`);
 
         try {
             // Combine audio buffers
@@ -355,6 +356,7 @@ class KeaV7Engine {
             const wavBuffer = this.float32ToWav(combinedAudio, 16000);
             
             // Step 1: STT
+            console.log(`📞 [${sessionId}] Starting STT (Google Cloud Speech)...`);
             if (callbacks.onStatus) callbacks.onStatus('transcribing');
             const sttStart = Date.now();
             let userText = '';
@@ -421,9 +423,11 @@ class KeaV7Engine {
             }
             
             const sttLatency = Date.now() - sttStart;
+            console.log(`📞 [${sessionId}] STT Complete: ${sttLatency}ms`);
             
             if (!userText) {
-                console.log(`[${sessionId}] Empty transcription, ignoring`);
+                console.log(`❌ [${sessionId}] Empty transcription, ignoring`);
+                if (callbacks.onStateChange) callbacks.onStateChange('listening');
                 return;
             }
 
@@ -464,6 +468,7 @@ class KeaV7Engine {
             // Get max tokens based on response length
             const responseLength = session.responseLength || 'MEDIUM';
             const maxTokens = RESPONSE_LENGTH_CONFIGS?.[responseLength]?.maxTokens || CONFIG.brain.maxTokens;
+            console.log(`🧠 [${sessionId}] Starting Brain (Groq Llama 3.3 70B)...`);
             console.log(`📏 [${sessionId}] Response length: ${responseLength}, max_tokens: ${maxTokens}`);
             
             const response = await this.groq.chat.completions.create({
@@ -479,8 +484,11 @@ class KeaV7Engine {
             const brainLatency = Date.now() - brainStart;
             const responseText = response.choices[0]?.message?.content?.trim();
             
+            console.log(`🧠 [${sessionId}] Brain Complete: ${brainLatency}ms`);
+            
             if (!responseText) {
-                console.log(`[${sessionId}] Empty brain response`);
+                console.log(`❌ [${sessionId}] Empty brain response`);
+                if (callbacks.onStateChange) callbacks.onStateChange('listening');
                 return;
             }
             
@@ -490,6 +498,7 @@ class KeaV7Engine {
             if (callbacks.onResponse) callbacks.onResponse(responseText);
             
             // Step 3: TTS with Gating
+            console.log(`🔊 [${sessionId}] Starting TTS (Google Chirp 3 HD)...`);
             if (callbacks.onStatus) callbacks.onStatus('speaking');
             
             // 🔒 CLOSE THE GATE
@@ -504,7 +513,10 @@ class KeaV7Engine {
             if (callbacks.onStatus) callbacks.onStatus('listening');
             
             const totalLatency = Date.now() - startTime;
-            console.log(`✅ [${sessionId}] Total: ${totalLatency}ms`);
+            console.log(`✅ [${sessionId}] ════════════════════════════════════════`);
+            console.log(`✅ [${sessionId}] TURN COMPLETE: ${totalLatency}ms`);
+            console.log(`✅ [${sessionId}]   STT: ${sttLatency}ms | Brain: ${brainLatency}ms | TTS: ~${totalLatency - sttLatency - brainLatency}ms`);
+            console.log(`✅ [${sessionId}] ════════════════════════════════════════`);
             
             if (callbacks.onComplete) {
                 callbacks.onComplete({ sttLatency, brainLatency, totalLatency });
