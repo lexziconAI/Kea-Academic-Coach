@@ -1407,7 +1407,15 @@
         const WS_URL = `${wsProtocol}//${window.location.host}/relay-v7`;
         
         // Session & Coaching Context
-        const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        // Generate meaningful session ID with date/time: kea_YYYY-MM-DD_HH-MM_xxxx
+        function generateSessionId() {
+            const now = new Date();
+            const date = now.toISOString().slice(0, 10); // YYYY-MM-DD
+            const time = now.toTimeString().slice(0, 5).replace(':', '-'); // HH-MM
+            const random = Math.random().toString(36).substr(2, 6); // 6 random chars
+            return `kea_${date}_${time}_${random}`;
+        }
+        const sessionId = generateSessionId();
         let coachingContext = null;
         let openingQuestion = null;
         
