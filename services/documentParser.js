@@ -79,22 +79,33 @@ async function parseWord(buffer, result) {
 
 /**
  * Parse PDF document using pdf-parse v2.x
- * New API: PDFParse({data: buffer}) -> load() -> getText()
+ * New API: PDFParse({data: buffer}) -> load() -> getText() returns {pages, text, total}
  */
 async function parsePDF(buffer, result) {
     const parser = new PDFParse({ data: buffer });
     await parser.load();
     
-    let text = await parser.getText();
+    const textResult = await parser.getText();
     const info = await parser.getInfo();
     
-    // Handle if getText returns array of page texts
-    if (Array.isArray(text)) {
-        text = text.join('\n');
+    // getText() returns {pages: [...], text: string, total: number}
+    let text = '';
+    if (textResult && typeof textResult === 'object') {
+        // Use the combined text property
+        if (textResult.text) {
+            text = textResult.text;
+        }
+        // Fallback: combine pages if text property is empty
+        else if (Array.isArray(textResult.pages)) {
+            text = textResult.pages.map(p => p.text || '').join('\n');
+        }
+        console.log(`📄 [PDF] Extracted from ${textResult.total || textResult.pages?.length || 'unknown'} pages`);
+    } else if (typeof textResult === 'string') {
+        text = textResult;
     }
-    // Ensure text is a string
+    
     result.text = String(text || '');
-    result.metadata.pageCount = info?.numPages || null;
+    result.metadata.pageCount = info?.numPages || textResult?.pages?.length || null;
     result.metadata.pdfInfo = info;
     
     // Clean up
