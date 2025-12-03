@@ -21,8 +21,15 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-// Database file path
-const DB_PATH = path.join(__dirname, '..', 'data', 'kea_sessions.db');
+// Database file path - use Render disk mount in production, local data folder in dev
+const isProduction = process.env.NODE_ENV === 'production';
+const RENDER_DISK_PATH = '/opt/render/project/src/uploads';
+
+// Check if Render disk is available
+const useRenderDisk = isProduction && fs.existsSync(RENDER_DISK_PATH);
+const DB_PATH = useRenderDisk 
+    ? path.join(RENDER_DISK_PATH, 'kea_sessions.db')
+    : path.join(__dirname, '..', 'data', 'kea_sessions.db');
 
 // Ensure data directory exists
 const dataDir = path.dirname(DB_PATH);
@@ -32,7 +39,7 @@ if (!fs.existsSync(dataDir)) {
 
 // Initialize database
 const db = new Database(DB_PATH);
-console.log('📦 SQLite database initialized at:', DB_PATH);
+console.log(`📦 SQLite database initialized at: ${DB_PATH} (${useRenderDisk ? 'Render persistent disk' : 'local'})`);
 
 // Create tables
 db.exec(`

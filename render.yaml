@@ -25,8 +25,8 @@ services:
       - key: GOOGLE_CLOUD_PROJECT
         sync: false  # Set manually in Render dashboard
 
-    # Disk for temporary file uploads (optional)
+    # Disk for database and temporary file uploads
     disk:
-      name: uploads
+      name: kea-data
       mountPath: /opt/render/project/src/uploads
       sizeGB: 1
