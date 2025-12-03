@@ -598,7 +598,12 @@ async function handleRequest(req, res) {
         const sessionDetails = sessionDb.getSessionDetails(sessionId);
         if (sessionDetails) {
           res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, session: sessionDetails }));
+          // Return both session and turns at top level for easier access
+          res.end(JSON.stringify({ 
+            success: true, 
+            session: sessionDetails,
+            turns: sessionDetails.turns || []  // Also expose turns at top level
+          }));
         } else {
           res.writeHead(404, { ...corsHeaders, 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: false, error: 'Session not found' }));
