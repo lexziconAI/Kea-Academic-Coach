@@ -29,11 +29,16 @@ class AudioGateClient {
         this.audioBuffer = [];
         this.speechStartTime = null;
         this.silenceTimer = null;
+        this.silencePendingTimer = null;
         this.isSpeaking = false;
+        this.silencePendingFired = false;
+        this.autoSendEnabled = true; // When false, manual mode (no auto-send)
         
+        // Callbacks
         this.onSpeechComplete = options.onSpeechComplete || (() => {});
         this.onSpeechStart = options.onSpeechStart || (() => {});
         this.onDropped = options.onDropped || (() => {});
+        this.onSilenceDetected = options.onSilenceDetected || null; // NEW: silence-pending callback
     }
     
     /**
@@ -77,7 +82,20 @@ class AudioGateClient {
             // Silence after speech
             this.audioBuffer.push(samples); // Include trailing silence
             
-            if (!this.silenceTimer) {
+            if (!this.silenceTimer && this.autoSendEnabled) {
+                // NEW: Fire silence-detected callback partway through silence timeout
+                if (this.onSilenceDetected && !this.silencePendingFired) {
+                    const halfSilenceTimeout = Math.floor(this.silenceTimeoutMs * 0.5);
+                    this.silencePendingTimer = setTimeout(() => {
+                        if (this.isSpeaking && !this.silencePendingFired) {
+                            this.silencePendingFired = true;
+                            const duration = Date.now() - this.speechStartTime;
+                            const combinedAudio = this.combineBuffers(this.audioBuffer);
+                            this.onSilenceDetected(combinedAudio, duration);
+                        }
+                    }, halfSilenceTimeout);
+                }
+                
                 this.silenceTimer = setTimeout(() => {
                     this.finalizeSpeech();
                 }, this.silenceTimeoutMs);
@@ -97,6 +115,13 @@ class AudioGateClient {
     
     finalizeSpeech() {
         const duration = Date.now() - this.speechStartTime;
+        
+        // Clear silence-pending timer
+        if (this.silencePendingTimer) {
+            clearTimeout(this.silencePendingTimer);
+            this.silencePendingTimer = null;
+        }
+        this.silencePendingFired = false;
         
         if (duration >= this.minDurationMs && this.audioBuffer.length > 0) {
             // Valid speech - send it
@@ -139,9 +164,95 @@ class AudioGateClient {
         this.audioBuffer = [];
         this.speechStartTime = null;
         this.isSpeaking = false;
+        this.silencePendingFired = false;
+        this.autoSendEnabled = true; // Re-enable for next turn
         if (this.silenceTimer) {
             clearTimeout(this.silenceTimer);
             this.silenceTimer = null;
+        }
+        if (this.silencePendingTimer) {
+            clearTimeout(this.silencePendingTimer);
+            this.silencePendingTimer = null;
+        }
+    }
+    
+    /**
+     * NEW: Reset silence timer when user clicks "Keep Listening"
+     */
+    resetSilenceTimer() {
+        if (this.silenceTimer) {
+            clearTimeout(this.silenceTimer);
+            this.silenceTimer = null;
+        }
+        if (this.silencePendingTimer) {
+            clearTimeout(this.silencePendingTimer);
+            this.silencePendingTimer = null;
+        }
+        this.silencePendingFired = false;
+        
+        // If we're still "speaking" (buffering audio), restart the silence detection
+        if (this.isSpeaking) {
+            console.log('[GATE] Silence timer reset - continuing to listen');
+        }
+    }
+    
+    /**
+     * NEW: Disable auto-send - clears all silence timers and stops auto-triggering
+     * Used when user clicks "Keep Listening" to enter manual mode
+     */
+    disableAutoSend() {
+        console.log('[GATE] Auto-send disabled - entering manual mode');
+        
+        // Disable timer creation for this turn
+        this.autoSendEnabled = false;
+        
+        // Clear all existing timers to prevent auto-send
+        if (this.silenceTimer) {
+            clearTimeout(this.silenceTimer);
+            this.silenceTimer = null;
+        }
+        if (this.silencePendingTimer) {
+            clearTimeout(this.silencePendingTimer);
+            this.silencePendingTimer = null;
+        }
+        this.silencePendingFired = false;
+        
+        // Continue buffering audio but don't trigger any timeouts
+        console.log('[GATE] Manual mode active - will buffer indefinitely until Send Now');
+    }
+    
+    /**
+     * NEW: Force flush - immediately send whatever audio is currently buffered
+     * Used when user clicks "Send Now" button
+     */
+    forceFlush() {
+        console.log('[GATE] Force flush triggered');
+        
+        // Clear all timers
+        if (this.silenceTimer) {
+            clearTimeout(this.silenceTimer);
+            this.silenceTimer = null;
+        }
+        if (this.silencePendingTimer) {
+            clearTimeout(this.silencePendingTimer);
+            this.silencePendingTimer = null;
+        }
+        this.silencePendingFired = false;
+        
+        // If we have buffered audio, send it immediately
+        if (this.audioBuffer.length > 0 && this.speechStartTime) {
+            const duration = Date.now() - this.speechStartTime;
+            const combinedAudio = this.combineBuffers(this.audioBuffer);
+            
+            console.log(`[GATE] Force flushing ${duration}ms of audio`);
+            this.onSpeechComplete(combinedAudio, duration);
+            
+            // Reset state
+            this.audioBuffer = [];
+            this.speechStartTime = null;
+            this.isSpeaking = false;
+        } else {
+            console.log('[GATE] No audio to flush');
         }
     }
     

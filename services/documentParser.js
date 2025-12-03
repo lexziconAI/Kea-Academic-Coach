@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════════
 
 const mammoth = require('mammoth');
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 const path = require('path');
 
 /**
@@ -78,13 +78,28 @@ async function parseWord(buffer, result) {
 }
 
 /**
- * Parse PDF document using pdf-parse
+ * Parse PDF document using pdf-parse v2.x
+ * New API: PDFParse({data: buffer}) -> load() -> getText()
  */
 async function parsePDF(buffer, result) {
-    const pdfResult = await pdfParse(buffer);
-    result.text = pdfResult.text;
-    result.metadata.pageCount = pdfResult.numpages;
-    result.metadata.pdfInfo = pdfResult.info;
+    const parser = new PDFParse({ data: buffer });
+    await parser.load();
+    
+    let text = await parser.getText();
+    const info = await parser.getInfo();
+    
+    // Handle if getText returns array of page texts
+    if (Array.isArray(text)) {
+        text = text.join('\n');
+    }
+    // Ensure text is a string
+    result.text = String(text || '');
+    result.metadata.pageCount = info?.numPages || null;
+    result.metadata.pdfInfo = info;
+    
+    // Clean up
+    parser.destroy();
+    
     return result;
 }
 

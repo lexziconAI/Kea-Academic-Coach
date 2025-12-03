@@ -45,6 +45,17 @@ const fs = require('fs');
 const path = require('path');
 const { AntiHallucinationPipeline } = require('./kea_v7_anti_hallucination');
 
+// Import response length configuration from coaching system
+let getPromptForLength, RESPONSE_LENGTH_CONFIGS;
+try {
+    const keaSystem = require('./kea_coaching_system');
+    getPromptForLength = keaSystem.getPromptForLength;
+    RESPONSE_LENGTH_CONFIGS = keaSystem.RESPONSE_LENGTH_CONFIGS;
+    console.log('✅ Response length configs loaded from kea_coaching_system');
+} catch (err) {
+    console.warn('⚠️ Could not load kea_coaching_system:', err.message);
+}
+
 // Lazy load Google Cloud clients to handle missing credentials gracefully
 let textToSpeech, speech;
 try {
@@ -79,20 +90,21 @@ const CONFIG = {
         languageCode: 'en-US'
     },
     
-    // Brain Settings (Groq Llama)
+    // Brain Settings (Groq Llama - supports 128k context window)
     brain: {
         model: 'llama-3.3-70b-versatile',
-        maxTokens: 300,
-        temperature: 0.7
+        maxTokens: 300,           // Response tokens (not context)
+        temperature: 0.7,
+        maxContextTokens: 128000  // Full 128k context window for large documents
     },
     
     // VAD Settings (Can be more sensitive now that echo is impossible)
     vad: {
         energyThreshold: 0.005,        // Increased from 0.001 to reduce noise hallucinations
         speechStartMs: 150,            // ms of speech to trigger
-        silenceEndMs: 1800,            // Base silence timeout - increased for thinking pauses
-        hedgingExtensionMs: 1000,      // Extra time for "um", "uh", thinking
-        maxSilenceMs: 3500             // Maximum silence timeout - 3.5 seconds for longer pauses
+        silenceEndMs: 2200,            // Base silence timeout - 2.2s for natural pauses
+        hedgingExtensionMs: 1000,      // Extra time for "um", "uh", thinking (total: 3.2s)
+        maxSilenceMs: 4000             // Maximum silence timeout - 4 seconds for longer pauses
     }
 };
 
@@ -449,13 +461,18 @@ class KeaV7Engine {
                 console.log(`🧠 [${sessionId}] System prompt length: ${systemPrompt.length} chars`);
             }
             
+            // Get max tokens based on response length
+            const responseLength = session.responseLength || 'MEDIUM';
+            const maxTokens = RESPONSE_LENGTH_CONFIGS?.[responseLength]?.maxTokens || CONFIG.brain.maxTokens;
+            console.log(`📏 [${sessionId}] Response length: ${responseLength}, max_tokens: ${maxTokens}`);
+            
             const response = await this.groq.chat.completions.create({
                 model: CONFIG.brain.model,
                 messages: [
                     { role: 'system', content: systemPrompt },
                     ...session.conversationHistory.slice(-10)
                 ],
-                max_tokens: CONFIG.brain.maxTokens,
+                max_tokens: maxTokens,
                 temperature: CONFIG.brain.temperature
             });
             
@@ -640,8 +657,23 @@ class KeaV7Engine {
     }
 
     getSystemPrompt(sessionId) {
-        const basePrompt = `You are Kea, a friendly voice-based academic research coach having a real-time spoken conversation.
+        // Get session for response length preference
+        const session = sessionId ? this.sessions.get(sessionId) : null;
+        const responseLength = session?.responseLength || 'MEDIUM';
+        
+        // Use the length-aware prompt from coaching system if available
+        let basePrompt;
+        if (getPromptForLength) {
+            basePrompt = getPromptForLength(responseLength);
+            console.log(`📏 [${sessionId}] Using ${responseLength} response length prompt`);
+        } else {
+            // Fallback prompt with British English and metric
+            basePrompt = `You are Kea, a friendly voice-based academic research coach having a real-time spoken conversation.
 You help PhD students and researchers think through their work using Socratic questioning.
+
+LANGUAGE & MEASUREMENTS:
+- Always use British spelling (colour, organisation, behaviour, analyse, centre, programme)
+- Always use metric measurements (convert any imperial to metric: kg, km, °C, metres, litres)
 
 Key behaviors:
 - You are speaking out loud - keep responses natural and conversational
@@ -651,14 +683,12 @@ Key behaviors:
 - Keep responses SHORT (1-2 sentences max) - this is a voice conversation
 - Be encouraging but intellectually rigorous
 - NEVER say you are "text-based" or cannot hear - you ARE a voice assistant`;
+        }
 
         // Get coaching context if available
         let coachingContext = null;
-        if (sessionId) {
-            const session = this.sessions.get(sessionId);
-            if (session && session.coachingContext) {
-                coachingContext = session.coachingContext;
-            }
+        if (session && session.coachingContext) {
+            coachingContext = session.coachingContext;
         }
 
         // Append coaching context if available
@@ -739,15 +769,30 @@ function createRelayV7(server, wsPath = '/relay-v7', coachingContexts = null) {
                 if (message.type === 'init' && message.sessionId) {
                     console.log(`🔗 [${sessionId}] Client sessionId: ${message.sessionId}`);
                     
+                    // Store response length preference
+                    if (message.responseLength) {
+                        const session = engine.sessions.get(sessionId);
+                        if (session) {
+                            session.responseLength = message.responseLength;
+                            console.log(`📏 [${sessionId}] Response length set: ${message.responseLength}`);
+                        }
+                    }
+                    
                     // Load coaching context from server-side map
+                    console.log(`🔍 [${sessionId}] Looking for context with key: ${message.sessionId}`);
+                    console.log(`🔍 [${sessionId}] Available contexts in map:`, Array.from(engine.coachingContexts.keys()));
+                    
                     if (engine.coachingContexts && engine.coachingContexts.has(message.sessionId)) {
                         const contextData = engine.coachingContexts.get(message.sessionId);
                         if (contextData && contextData.coachingContext) {
                             engine.setCoachingContext(sessionId, contextData.coachingContext);
-                            console.log(`✅ [${sessionId}] FRACTAL COACHING CONTEXT LOADED!`);
+                            console.log(`✅ [${sessionId}] ═══ COACHING CONTEXT LOADED ═══`);
+                            console.log(`   File: ${contextData.filename || 'Unknown'}`);
                             console.log(`   Organization: ${contextData.analysis?.organization?.name || 'Unknown'}`);
                             console.log(`   Context length: ${contextData.coachingContext.length} chars`);
-                            console.log(`   Dev areas: ${contextData.analysis?.coaching_output?.development_areas?.length || 0}`);
+                            console.log(`   Context preview: ${contextData.coachingContext.substring(0, 200)}...`);
+                            console.log(`   Timestamp: ${new Date(contextData.timestamp).toISOString()}`);
+                            console.log(`✅ [${sessionId}] ═══════════════════════════════`);
                             ws.send(JSON.stringify({ 
                                 type: 'coaching_context_loaded', 
                                 success: true,
@@ -756,6 +801,28 @@ function createRelayV7(server, wsPath = '/relay-v7', coachingContexts = null) {
                         }
                     } else {
                         console.log(`⚠️ [${sessionId}] No coaching context found for client session ${message.sessionId}`);
+                        console.log(`⚠️ [${sessionId}] This session will start WITHOUT uploaded document context`);
+                    }
+                }
+                
+                // Handle reload_context message (for mid-session uploads)
+                if (message.type === 'reload_context' && message.sessionId) {
+                    console.log(`🔄 [${sessionId}] Reloading coaching context after upload...`);
+                    
+                    if (engine.coachingContexts && engine.coachingContexts.has(message.sessionId)) {
+                        const contextData = engine.coachingContexts.get(message.sessionId);
+                        if (contextData && contextData.coachingContext) {
+                            engine.setCoachingContext(sessionId, contextData.coachingContext);
+                            const docCount = contextData.additionalDocuments?.length || 1;
+                            console.log(`✅ [${sessionId}] CONTEXT RELOADED! Total documents: ${docCount}`);
+                            console.log(`   Updated context length: ${contextData.coachingContext.length} chars`);
+                            ws.send(JSON.stringify({ 
+                                type: 'context_reloaded', 
+                                success: true,
+                                totalDocuments: docCount,
+                                contextLength: contextData.coachingContext.length
+                            }));
+                        }
                     }
                 }
                 
@@ -797,13 +864,17 @@ function createRelayV7(server, wsPath = '/relay-v7', coachingContexts = null) {
                         const hasCoachingContext = systemPrompt.includes('STUDENT ASSESSMENT CONTEXT');
                         console.log(`🧠 [${sessionId}] Text input - Coaching context injected: ${hasCoachingContext ? '✅ YES' : '❌ NO'}`);
                         
+                        // Get max tokens based on response length
+                        const responseLength = session.responseLength || 'MEDIUM';
+                        const maxTokens = RESPONSE_LENGTH_CONFIGS?.[responseLength]?.maxTokens || CONFIG.brain.maxTokens;
+                        
                         const response = await engine.groq.chat.completions.create({
                             model: CONFIG.brain.model,
                             messages: [
                                 { role: 'system', content: systemPrompt },
                                 ...session.conversationHistory.slice(-10)
                             ],
-                            max_tokens: CONFIG.brain.maxTokens,
+                            max_tokens: maxTokens,
                             temperature: CONFIG.brain.temperature
                         });
                         

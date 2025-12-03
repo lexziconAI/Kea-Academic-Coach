@@ -102,36 +102,39 @@
 
 
         .mic-button {
-            width: 120px;
-            height: 120px;
+            width: 180px;
+            height: 180px;
             border-radius: 50%;
             border: none;
-            background: linear-gradient(145deg, var(--kea-green), #45a049);
+            background: white;
             color: white;
             font-size: 3em;
             cursor: pointer;
             transition: all 0.3s;
-            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.3);
-            margin: 20px auto;
-            display: block;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin: 30px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             position: relative;
         }
         
         .mic-button:hover {
             transform: scale(1.05);
-            box-shadow: 0 15px 40px rgba(76, 175, 80, 0.4);
+            box-shadow: 0 15px 40px rgba(76, 175, 80, 0.6);
         }
         
         .mic-button.active {
-            background: linear-gradient(145deg, var(--kea-blue), #2980b9);
+            background: white;
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.8);
             animation: mic-active 1.5s infinite;
         }
         
         .mic-button.speaking {
-            background: linear-gradient(145deg, var(--kea-accent), #c0392b);
+            background: white;
+            box-shadow: 0 0 30px rgba(233, 69, 96, 0.8);
             cursor: not-allowed;
             animation: none;
-            opacity: 0.8;
         }
         
         .mic-icon {
@@ -145,6 +148,314 @@
         @keyframes mic-active {
             0%, 100% { box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.7); }
             50% { box-shadow: 0 0 0 30px rgba(52, 152, 219, 0); }
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════════════
+           GUARDIAN SVG & SILENCE-PENDING ANIMATIONS
+           ═══════════════════════════════════════════════════════════════════════ */
+        
+        @keyframes silence-flash {
+            0%, 100% { 
+                box-shadow: 0 0 30px rgba(243, 156, 18, 0.6);
+            }
+            50% { 
+                box-shadow: 0 0 50px rgba(243, 156, 18, 1);
+            }
+        }
+        
+        @keyframes processing-pulse {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02); }
+        }
+        
+        @keyframes guardian-breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        
+        @keyframes guardian-ripple {
+            0% { r: 30; opacity: 0.4; }
+            100% { r: 50; opacity: 0; }
+        }
+        
+        .mic-button.silence-pending {
+            background: white;
+            box-shadow: 0 0 40px rgba(243, 156, 18, 0.9);
+            animation: silence-flash 0.6s ease-in-out infinite;
+            cursor: pointer;
+        }
+        
+        .mic-button.processing {
+            background: white;
+            box-shadow: 0 0 30px rgba(155, 89, 182, 0.8);
+            animation: processing-pulse 1s ease-in-out infinite;
+            cursor: wait;
+        }
+        
+        /* Send Control Buttons - Always visible, flash on silence detection */
+        .send-control-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            opacity: 1;
+            transform: translateY(0);
+            transition: all 0.3s ease;
+            pointer-events: auto;
+        }
+        
+        .send-control-container.flashing {
+            animation: button-flash 0.6s ease-in-out infinite;
+        }
+        
+        @keyframes button-flash {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.7;
+                transform: scale(1.05);
+            }
+        }
+        
+        .send-control-btn {
+            padding: 12px 24px;
+            border-radius: 25px;
+            border: none;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .send-control-btn.extend {
+            background: rgba(243, 156, 18, 0.2);
+            color: var(--kea-gold);
+            border: 2px solid var(--kea-gold);
+        }
+        
+        .send-control-btn.extend:hover {
+            background: rgba(243, 156, 18, 0.4);
+            transform: scale(1.05);
+        }
+        
+        .send-control-btn.send {
+            background: linear-gradient(145deg, var(--kea-green), #45a049);
+            color: white;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+        
+        .send-control-btn.send:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
+        }
+        
+        .send-control-btn.processing {
+            background: linear-gradient(145deg, #9b59b6, #8e44ad);
+            color: white;
+            cursor: wait;
+        }
+        
+        /* Upload Button (Floating Action Button) */
+        .upload-fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #2196F3, #1976D2);
+            color: white;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(33, 150, 243, 0.5);
+            transition: all 0.3s;
+            z-index: 1000;
+            display: none; /* Hidden until session starts */
+            animation: upload-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes upload-pulse {
+            0%, 100% {
+                box-shadow: 0 4px 20px rgba(33, 150, 243, 0.5);
+            }
+            50% {
+                box-shadow: 0 4px 30px rgba(33, 150, 243, 0.8);
+            }
+        }
+        
+        .upload-fab:hover {
+            transform: scale(1.15);
+            box-shadow: 0 6px 25px rgba(33, 150, 243, 0.7);
+            animation: none;
+        }
+        
+        .upload-fab.visible {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Upload Modal */
+        .upload-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .upload-modal.active {
+            display: flex;
+        }
+        
+        .upload-modal-content {
+            background: #1e1e1e;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .upload-modal-content h3 {
+            margin-top: 0;
+            color: var(--kea-green);
+            font-size: 1.5em;
+        }
+        
+        .upload-modal-content label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 14px;
+        }
+        
+        .upload-modal-content textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+        
+        .upload-modal-content textarea:focus {
+            outline: none;
+            border-color: var(--kea-green);
+        }
+        
+        .upload-modal-content input[type="file"] {
+            display: none;
+        }
+        
+        .file-select-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: rgba(33, 150, 243, 0.2);
+            border: 2px dashed #2196F3;
+            border-radius: 8px;
+            color: #2196F3;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .file-select-btn:hover {
+            background: rgba(33, 150, 243, 0.3);
+            transform: scale(1.02);
+        }
+        
+        .file-select-btn.has-file {
+            border-color: var(--kea-green);
+            color: var(--kea-green);
+            background: rgba(76, 175, 80, 0.2);
+        }
+        
+        .upload-modal-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        .upload-modal-actions button {
+            flex: 1;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .upload-modal-actions .cancel-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .upload-modal-actions .cancel-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .upload-modal-actions .submit-btn {
+            background: linear-gradient(145deg, var(--kea-green), #45a049);
+            color: white;
+        }
+        
+        .upload-modal-actions .submit-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .upload-modal-actions .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        
+        .guardian-svg {
+            width: 100%;
+            height: 100%;
+            transition: all 0.3s ease;
+            object-fit: contain;
+        }
+        
+        .guardian-svg.listening {
+            filter: drop-shadow(0 0 20px rgba(76, 175, 80, 0.6));
+            animation: guardian-breathe 2s ease-in-out infinite;
+        }
+        
+        .guardian-svg.speaking {
+            filter: drop-shadow(0 0 25px rgba(233, 69, 96, 0.7));
+            animation: guardian-breathe 0.8s ease-in-out infinite;
+        }
+        
+        .guardian-svg.silence-pending {
+            filter: drop-shadow(0 0 25px rgba(243, 156, 18, 0.8));
+            animation: guardian-breathe 1s ease-in-out infinite;
+        }
+        
+        .guardian-svg.processing {
+            filter: drop-shadow(0 0 20px rgba(155, 89, 182, 0.7));
+            animation: processing-pulse 1s ease-in-out infinite;
         }
         
         .visualizer {
@@ -366,10 +677,13 @@
         
         .state-label {
             text-align: center;
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 10px;
-            height: 1.5em;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            height: auto;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         
         /* Upload Panel Styles */
@@ -507,9 +821,326 @@
         .voice-section.active {
             display: block;
         }
+        
+        /* ═══════════════════════════════════════════════════════════════════════
+           RESPONSE LENGTH SELECTOR
+           ═══════════════════════════════════════════════════════════════════════ */
+        
+        .response-length-panel {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .response-length-title {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        
+        .response-length-selector {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .response-length-btn {
+            flex: 1;
+            min-width: 100px;
+            max-width: 150px;
+            padding: 12px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ccc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .response-length-btn:hover {
+            border-color: rgba(76, 175, 80, 0.5);
+            background: rgba(76, 175, 80, 0.1);
+            color: white;
+        }
+        
+        .response-length-btn.active {
+            border-color: var(--kea-green);
+            background: rgba(76, 175, 80, 0.2);
+            color: white;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .response-length-btn .length-icon {
+            font-size: 1.5em;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .response-length-btn .length-name {
+            font-weight: bold;
+            font-size: 0.95em;
+        }
+        
+        .response-length-btn .length-desc {
+            font-size: 0.75em;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+        
+        .response-length-current {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: var(--kea-green);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .response-length-current.visible {
+            opacity: 1;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════════════
+           USER REGISTRATION FORM
+           ═══════════════════════════════════════════════════════════════════════ */
+        
+        .registration-panel {
+            text-align: center;
+        }
+        
+        .registration-title {
+            font-size: 1.3em;
+            margin-bottom: 8px;
+            color: white;
+        }
+        
+        .registration-subtitle {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+        
+        .registration-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .form-group {
+            text-align: left;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 0.9em;
+            color: #ccc;
+            margin-bottom: 6px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--kea-green);
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .form-group input::placeholder {
+            color: #666;
+        }
+        
+        .form-group .hint {
+            font-size: 0.75em;
+            color: #888;
+            margin-top: 4px;
+        }
+        
+        .continue-btn {
+            padding: 14px 30px;
+            background: linear-gradient(145deg, var(--kea-green), #45a049);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        .continue-btn:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+        }
+        
+        .continue-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .privacy-note {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 15px;
+        }
+        
+        /* Report Modal Styles */
+        .report-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .report-modal.active {
+            display: flex;
+        }
+        
+        .report-modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 450px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .report-modal-header {
+            background: linear-gradient(135deg, var(--kea-dark) 0%, var(--kea-light) 100%);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .report-modal-header h3 {
+            margin: 0;
+            font-size: 1.2em;
+        }
+        
+        .report-close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.2s;
+        }
+        
+        .report-close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .report-modal-body {
+            padding: 25px;
+        }
+        
+        .report-option {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 18px 20px;
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+        
+        .report-option:hover {
+            background: #e8f5e9;
+            border-color: var(--kea-green);
+        }
+        
+        .report-option-icon {
+            font-size: 2em;
+        }
+        
+        .report-option-details {
+            flex: 1;
+        }
+        
+        .report-option-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .report-option-desc {
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        .report-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px 20px;
+            background: #e3f2fd;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+        
+        .report-status.success {
+            background: #e8f5e9;
+        }
+        
+        .report-status.error {
+            background: #ffebee;
+        }
+        
+        .report-status-icon {
+            font-size: 1.5em;
+        }
+        
+        .report-status-text {
+            color: #333;
+            font-size: 0.95em;
+        }
     </style>
 </head>
 <body>
+    <!-- Admin Button - Fixed to top right of viewport -->
+    <a href="/admin.html" style="position: fixed; top: 20px; right: 20px; z-index: 1000; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.85em; text-decoration: none; padding: 8px 16px; border-radius: 20px; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3); transition: all 0.3s ease;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.5)'" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 10px rgba(102, 126, 234, 0.3)'">🔐 Admin</a>
+    
     <div class="header">
         <img src="axiom-logo.png" alt="Axiom Intelligence" style="height: 120px; margin-bottom: 15px;">
         <h1>Kea Academic Coach</h1>
@@ -518,16 +1149,59 @@
     </div>
     
     <div class="container">
-        <!-- Upload Panel (shown first) -->
-        <div id="upload-panel" class="panel upload-panel">
+        <!-- Registration Panel (shown FIRST) -->
+        <div id="registration-panel" class="panel registration-panel">
+            <div class="registration-title">👋 Welcome to Kea</div>
+            <div class="registration-subtitle">Let's get started with a quick introduction</div>
+            
+            <div class="registration-form">
+                <div class="form-group">
+                    <label for="user-name">Your Name *</label>
+                    <input type="text" id="user-name" placeholder="e.g., Sarah Chen" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="user-email">Email Address *</label>
+                    <input type="email" id="user-email" placeholder="e.g., sarah.chen@university.ac.nz" required>
+                    <div class="hint">We'll use this to save your session and send your report</div>
+                </div>
+                
+                <button id="continue-btn" class="continue-btn" disabled>
+                    Continue →
+                </button>
+                
+                <div class="privacy-note">
+                    🔒 Your data is stored securely and used only for your coaching session.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Upload Panel (shown after registration) -->
+        <div id="upload-panel" class="panel upload-panel" style="display: none;">
             <div class="upload-icon">📄</div>
             <div class="upload-title">Upload Your Assessment</div>
             <div class="upload-subtitle">Drop your sustainability report here or click to browse</div>
+            <div style="font-size: 0.8em; color: #888; margin: 8px 0;">📦 Max file size: 100MB (images & tables supported)</div>
             <input type="file" id="file-input" class="upload-input" accept=".docx,.pdf,.txt">
             <div class="upload-formats">
                 <span class="format-badge">.docx</span>
                 <span class="format-badge">.pdf</span>
                 <span class="format-badge">.txt</span>
+            </div>
+            
+            <!-- Optional description for initial upload -->
+            <div style="margin-top: 20px; padding: 0 20px;">
+                <label style="display: block; margin-bottom: 8px; color: #aaa; font-size: 14px;">
+                    Context / Instructions (Optional)
+                    <span style="color: #666; font-size: 12px; font-weight: normal;">
+                        - Guide the AI's coaching approach
+                    </span>
+                </label>
+                <textarea 
+                    id="initial-upload-description" 
+                    placeholder="Example: 'Focus on stakeholder engagement gaps' or 'I need help strengthening the methodology section'"
+                    style="width: 100%; min-height: 80px; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: white; font-family: inherit; font-size: 14px; resize: vertical;"
+                ></textarea>
             </div>
             <div id="upload-progress" class="upload-progress">
                 <div class="progress-bar">
@@ -546,19 +1220,59 @@
             <button id="skip-upload" class="skip-upload">Skip → Start without upload</button>
         </div>
         
+        <!-- Response Length Selector (shown after upload, before voice) -->
+        <div id="response-length-panel" class="panel response-length-panel" style="display: none;">
+            <div class="response-length-title">💬 How would you like Kea to respond?</div>
+            <div class="response-length-selector">
+                <button class="response-length-btn" data-length="SHORT">
+                    <span class="length-icon">⚡</span>
+                    <span class="length-name">Short</span>
+                    <span class="length-desc">Quick & focused</span>
+                </button>
+                <button class="response-length-btn active" data-length="MEDIUM">
+                    <span class="length-icon">💬</span>
+                    <span class="length-name">Medium</span>
+                    <span class="length-desc">Balanced chat</span>
+                </button>
+                <button class="response-length-btn" data-length="LONG">
+                    <span class="length-icon">📚</span>
+                    <span class="length-name">Long</span>
+                    <span class="length-desc">Deep exploration</span>
+                </button>
+            </div>
+            <div id="response-length-current" class="response-length-current">
+                ✓ Balanced responses selected
+            </div>
+            <button id="start-session-btn" class="skip-upload" style="background: var(--kea-green); color: white; border: none; margin-top: 20px; padding: 12px 30px; font-size: 1em; font-weight: bold;">
+                🎤 Start Coaching Session
+            </button>
+        </div>
+        
         <!-- Voice Section (hidden until upload or skip) -->
         <div id="voice-section" class="voice-section">
-            <!-- Traffic Light Indicator -->
-            <div class="traffic-light">
+        <div class="panel">
+            <!-- Hidden traffic lights for backwards compatibility -->
+            <div class="traffic-light" style="display: none;">
                 <div id="light-listening" class="light green">👂</div>
                 <div id="light-speaking" class="light red">🗣️</div>
             </div>
-            <div id="state-label" class="state-label">Ready to Connect</div>
+            
+            <!-- State Label above microphone -->
+            <div id="state-label" class="state-label" style="margin-top: 10px;">Ready to Connect</div>
+            
+            <!-- Send Control Buttons (appear during silence-pending state) -->
+            <div id="send-control-container" class="send-control-container">
+                <button id="extend-btn" class="send-control-btn extend">
+                    <span>⏸️</span> Keep Listening
+                </button>
+                <button id="send-btn" class="send-control-btn send">
+                    <span>📤</span> Send Now
+                </button>
+            </div>
 
-
-        
-        <div class="panel">
-            <button id="mic-btn" class="mic-button">🎤</button>
+            <button id="mic-btn" class="mic-button" style="width: 180px; height: 180px; margin: 30px auto;">
+                <img src="transparent/set1_silent.png" alt="Kea" style="width: 120px; height: 120px;" />
+            </button>
             <div class="visualizer">
                 <canvas id="audio-viz"></canvas>
             </div>
@@ -596,11 +1310,45 @@
                 <div class="summary-title">📋 Key Takeaways</div>
                 <div class="summary-actions">
                     <button class="summary-btn secondary" onclick="toggleSummary()">Hide</button>
-                    <button class="summary-btn" onclick="printSummary()">🖨️ Print PDF</button>
+                    <button class="summary-btn" onclick="showReportOptions()">📄 View Report</button>
                 </div>
             </div>
             <div class="summary-content" id="summary-content">
                 <!-- AI-generated summary will appear here -->
+            </div>
+        </div>
+        
+        <!-- Report Options Modal -->
+        <div class="report-modal" id="report-modal">
+            <div class="report-modal-content">
+                <div class="report-modal-header">
+                    <h3>📄 Session Report</h3>
+                    <button class="report-close-btn" onclick="hideReportModal()">✕</button>
+                </div>
+                <div class="report-modal-body">
+                    <p style="margin-bottom: 20px; color: #666;">Choose how you'd like to receive your report:</p>
+                    
+                    <div class="report-option" onclick="emailReport()">
+                        <div class="report-option-icon">📧</div>
+                        <div class="report-option-details">
+                            <div class="report-option-title">Email Report</div>
+                            <div class="report-option-desc">Send a formatted report to <span id="report-email-display">your email</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-option" onclick="printSummary()">
+                        <div class="report-option-icon">🖨️</div>
+                        <div class="report-option-details">
+                            <div class="report-option-title">Print / Save PDF</div>
+                            <div class="report-option-desc">Print or save as PDF using your browser</div>
+                        </div>
+                    </div>
+                    
+                    <div class="report-status" id="report-status" style="display: none;">
+                        <div class="report-status-icon">⏳</div>
+                        <div class="report-status-text">Sending...</div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -628,6 +1376,13 @@
         let coachingContext = null;
         let openingQuestion = null;
         
+        // User registration data
+        let userData = {
+            name: null,
+            email: null,
+            userId: null
+        };
+        
         // Conversation History for Summary
         let conversationHistory = [];
         let summaryUpdatePending = false;
@@ -645,6 +1400,12 @@
         // Anti-Hallucination Gate
         let audioGate = null;
         
+        // Registration UI Elements
+        const registrationPanel = document.getElementById('registration-panel');
+        const userNameInput = document.getElementById('user-name');
+        const userEmailInput = document.getElementById('user-email');
+        const continueBtn = document.getElementById('continue-btn');
+        
         // Upload UI Elements
         const uploadPanel = document.getElementById('upload-panel');
         const voiceSection = document.getElementById('voice-section');
@@ -654,6 +1415,10 @@
         const uploadStatus = document.getElementById('upload-status');
         const uploadResult = document.getElementById('upload-result');
         const skipUpload = document.getElementById('skip-upload');
+        const responseLengthPanel = document.getElementById('response-length-panel');
+        
+        // Response Length Setting (default: MEDIUM)
+        let responseLength = 'MEDIUM';
         
         // Voice UI Elements
         const micBtn = document.getElementById('mic-btn');
@@ -666,6 +1431,96 @@
         const lightListening = document.getElementById('light-listening');
         const lightSpeaking = document.getElementById('light-speaking');
         const stateLabel = document.getElementById('state-label');
+        
+        // ═══════════════════════════════════════════════════════════════════════════
+        // REGISTRATION HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════════
+        
+        function validateRegistration() {
+            const name = userNameInput.value.trim();
+            const email = userEmailInput.value.trim();
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            const isValid = name.length >= 2 && emailRegex.test(email);
+            continueBtn.disabled = !isValid;
+            return isValid;
+        }
+        
+        userNameInput.addEventListener('input', validateRegistration);
+        userEmailInput.addEventListener('input', validateRegistration);
+        
+        continueBtn.addEventListener('click', async () => {
+            if (!validateRegistration()) return;
+            
+            userData.name = userNameInput.value.trim();
+            userData.email = userEmailInput.value.trim();
+            
+            continueBtn.textContent = 'Setting up...';
+            continueBtn.disabled = true;
+            
+            try {
+                // Register user and create session on server
+                const response = await fetch('/api/register-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId: sessionId,
+                        name: userData.name,
+                        email: userData.email,
+                        responseLength: responseLength
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    userData.userId = result.userId;
+                    console.log('✅ Session registered:', sessionId);
+                    
+                    // Show upload panel
+                    registrationPanel.style.display = 'none';
+                    uploadPanel.style.display = 'block';
+                } else {
+                    throw new Error('Registration failed');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                alert('Failed to register session. Please try again.');
+                continueBtn.textContent = 'Continue →';
+                continueBtn.disabled = false;
+            }
+        });
+        
+        // ═══════════════════════════════════════════════════════════════════════════
+        // SESSION PERSISTENCE - Save on window close / visibility change
+        // ═══════════════════════════════════════════════════════════════════════════
+        
+        // Detect window close or tab switch
+        window.addEventListener('beforeunload', (event) => {
+            // Send final session data via beacon (survives page close)
+            const finalData = {
+                sessionId: sessionId,
+                action: 'end_session',
+                reason: 'window_close',
+                keyTakeaways: document.getElementById('summary-content')?.innerHTML || null,
+                conversationHistory: conversationHistory
+            };
+            
+            navigator.sendBeacon('/api/end-session', JSON.stringify(finalData));
+        });
+        
+        // Also detect visibility change (tab switch, minimize)
+        let lastActivityTime = Date.now();
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // User switched away - log it
+                console.log('👀 User switched away from tab');
+            } else {
+                // User came back
+                const awayTime = Date.now() - lastActivityTime;
+                console.log(`👀 User returned after ${Math.round(awayTime/1000)}s`);
+            }
+            lastActivityTime = Date.now();
+        });
         
         // ═══════════════════════════════════════════════════════════════════════════
         // UPLOAD HANDLERS
@@ -723,6 +1578,13 @@
                 const formData = new FormData();
                 formData.append('file', file);
                 formData.append('sessionId', sessionId);
+                
+                // Include optional description for initial upload
+                const initialDescription = document.getElementById('initial-upload-description')?.value.trim();
+                if (initialDescription) {
+                    formData.append('description', initialDescription);
+                    console.log(`[UPLOAD] Including description: "${initialDescription.substring(0, 50)}..."`);
+                }
                 
                 // Animate progress
                 let progress = 0;
@@ -811,6 +1673,12 @@
         
         function showVoiceSection() {
             uploadPanel.style.display = 'none';
+            // Show response length selector first
+            responseLengthPanel.style.display = 'block';
+        }
+        
+        function startVoiceSession() {
+            responseLengthPanel.style.display = 'none';
             voiceSection.classList.add('active');
             
             // If we have an opening question, show it
@@ -820,24 +1688,86 @@
         }
         
         // ═══════════════════════════════════════════════════════════════════════════
+        // RESPONSE LENGTH HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════════
+        
+        // Response length button handlers
+        document.querySelectorAll('.response-length-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active from all
+                document.querySelectorAll('.response-length-btn').forEach(b => b.classList.remove('active'));
+                // Add active to clicked
+                btn.classList.add('active');
+                // Store setting
+                responseLength = btn.dataset.length;
+                
+                // Update confirmation text
+                const currentLabel = document.getElementById('response-length-current');
+                const labels = {
+                    'SHORT': '⚡ Quick, focused responses selected',
+                    'MEDIUM': '💬 Balanced responses selected',
+                    'LONG': '📚 Deep exploration mode selected'
+                };
+                currentLabel.textContent = '✓ ' + labels[responseLength].substring(2);
+                currentLabel.classList.add('visible');
+                
+                console.log('[CONFIG] Response length set to:', responseLength);
+            });
+        });
+        
+        // Start session button
+        document.getElementById('start-session-btn').addEventListener('click', () => {
+            console.log('[SESSION] Starting with response length:', responseLength);
+            startVoiceSession();
+        });
+        
+        // ═══════════════════════════════════════════════════════════════════════════
         // VOICE HANDLERS
         // ═══════════════════════════════════════════════════════════════════════════
         
         // Initialize
         micBtn.addEventListener('click', toggleRecording);
         
+        // ═══════════════════════════════════════════════════════════════════════
+        // GUARDIAN SVG STATE MANAGEMENT
+        // ═══════════════════════════════════════════════════════════════════════
+        
+        function updateGuardianState(state) {
+            // This function now only updates the mic button state classes
+            // The actual icon changes are handled by updateState()
+            const micBtn = document.getElementById('mic-btn');
+            if (!micBtn) return;
+            
+            // Remove all state classes
+            micBtn.classList.remove('silence-pending', 'processing');
+            
+            switch(state) {
+                case 'silence-pending':
+                    micBtn.classList.add('silence-pending');
+                    break;
+                    
+                case 'processing':
+                    micBtn.classList.add('processing');
+                    break;
+                    
+                // Other states (silence, idle, listening, speaking) are handled by updateState()
+            }
+        }
+        
         function updateState(state) {
             lightListening.classList.remove('active');
             lightSpeaking.classList.remove('active');
-            micBtn.classList.remove('active', 'speaking');
-            micBtn.innerHTML = '🎤';
+            micBtn.classList.remove('active', 'speaking', 'silence-pending', 'processing');
+            micBtn.innerHTML = '<img src="transparent/set1_silent.png" alt="Kea" style="width: 120px; height: 120px;" />';
             
             if (state === 'listening') {
                 lightListening.classList.add('active');
                 stateLabel.innerText = "Listening...";
                 stateLabel.style.color = "var(--kea-green)";
                 micBtn.classList.add('active');
+                micBtn.innerHTML = '<img src="transparent/set1_listening.png" alt="Kea Listening" style="width: 120px; height: 120px;" />';
                 isSystemSpeaking = false;
+                updateGuardianState('listening');
                 
                 // Reset playback queue when we start listening
                 if (audioContext) {
@@ -854,8 +1784,13 @@
                 stateLabel.innerText = "System Speaking";
                 stateLabel.style.color = "var(--kea-accent)";
                 micBtn.classList.add('speaking');
-                micBtn.innerHTML = '🔇';
+                micBtn.innerHTML = '<img src="transparent/set1_speaking.png" alt="Kea Speaking" style="width: 120px; height: 120px;" />';
                 isSystemSpeaking = true;
+                updateGuardianState('speaking');
+                
+                // Stop flashing when system is speaking
+                const sendControlContainer = document.getElementById('send-control-container');
+                if (sendControlContainer) sendControlContainer.classList.remove('flashing');
                 
                 // MUTE MICROPHONE (Sensory Gating)
                 if (audioWorkletNode) {
@@ -870,6 +1805,7 @@
             else {
                 stateLabel.innerText = "Ready";
                 stateLabel.style.color = "white";
+                updateGuardianState('idle');
             }
         }
 
@@ -883,6 +1819,9 @@
         
         async function startRecording() {
             try {
+                // Show upload button when recording starts
+                showUploadButton();
+                
                 if (!audioContext) {
                     // Use default sample rate (usually 44.1k or 48k) for high quality output
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -909,30 +1848,111 @@
                 
                 connectWebSocket();
                 
-                // Initialize Audio Gate
+                // ═══════════════════════════════════════════════════════════════════════
+                // ENHANCED AUDIO GATE with Silence-Pending UI
+                // ═══════════════════════════════════════════════════════════════════════
+                
+                let pendingAudio = null;
+                let pendingDuration = 0;
+                let manualSendMode = false; // When true, disable auto-send (user clicked Keep Listening)
+                
+                // UI Elements for send control
+                const sendControlContainer = document.getElementById('send-control-container');
+                const extendBtn = document.getElementById('extend-btn');
+                const sendBtn = document.getElementById('send-btn');
+                // Kea voice icon will be updated via updateGuardianState()
+                
+                // Initialize Audio Gate with silence detection
                 audioGate = new AudioGateClient({
-                    minDurationMs: 500,
-                    minEnergy: 0.005,
-                    minDbAboveNoise: 10,
+                    minDurationMs: 600,        // Slightly increased from 500ms - filters typing clicks
+                    minEnergy: 0.008,          // Balanced - detects normal speech, filters typing
+                    minDbAboveNoise: 12,       // Moderate - good speech/noise separation
+                    silenceTimeoutMs: 2200,    // Match server VAD (2.2 seconds base)
+                    onSilenceDetected: (combinedAudio, duration) => {
+                        // Halfway through silence - flash buttons to give user chance to extend
+                        pendingAudio = combinedAudio;
+                        pendingDuration = duration;
+                        
+                        if (!isSystemSpeaking) {
+                            updateGuardianState('silence-pending');
+                            sendControlContainer.classList.add('flashing');
+                            console.log(`[GATE] Silence detected after ${duration}ms - flashing controls (will auto-send in 1100ms)`);
+                        }
+                    },
                     onSpeechComplete: (combinedAudio, duration) => {
-                        if (ws && ws.readyState === WebSocket.OPEN && !isSystemSpeaking) {
-                            // Convert Int16 to Float32 for server compatibility
-                            const floatAudio = new Float32Array(combinedAudio.length);
-                            for(let i=0; i<combinedAudio.length; i++) {
-                                floatAudio[i] = combinedAudio[i] / 32768.0;
-                            }
-                            
-                            // Send as a single large chunk
-                            ws.send(JSON.stringify({
-                                type: 'audio_chunk',
-                                audio: arrayBufferToBase64(floatAudio.buffer),
-                                timestamp: Date.now()
-                            }));
-                            console.log(`[GATE] Sent ${duration}ms of speech`);
+                        // Full silence timeout reached - auto-send (unless in manual mode or already sent)
+                        if (pendingAudio && !manualSendMode) {
+                            console.log(`[GATE] Auto-sending after full silence timeout`);
+                            clearSilencePending();
+                            sendAudioToServer(combinedAudio, duration);
+                        } else if (manualSendMode) {
+                            console.log(`[GATE] Manual mode active - waiting for user to click Send Now`);
+                            clearSilencePending();
+                        } else {
+                            console.log(`[GATE] Speech complete but already handled by user action`);
                         }
                     },
                     onDropped: (duration) => {
                         console.log(`[GATE] Dropped ${duration}ms (noise/short)`);
+                        clearSilencePending();
+                    }
+                });
+                
+                function sendAudioToServer(audio, duration) {
+                    if (ws && ws.readyState === WebSocket.OPEN && !isSystemSpeaking) {
+                        // Show processing state
+                        updateGuardianState('processing');
+                        sendControlContainer.classList.remove('flashing');
+                        
+                        // Convert Int16 to Float32 for server compatibility
+                        const floatAudio = new Float32Array(audio.length);
+                        for(let i=0; i<audio.length; i++) {
+                            floatAudio[i] = audio[i] / 32768.0;
+                        }
+                        
+                        // Send as a single large chunk
+                        ws.send(JSON.stringify({
+                            type: 'audio_chunk',
+                            audio: arrayBufferToBase64(floatAudio.buffer),
+                            timestamp: Date.now()
+                        }));
+                        console.log(`[GATE] Sent ${duration}ms of speech`);
+                    }
+                }
+                
+                function clearSilencePending() {
+                    pendingAudio = null;
+                    pendingDuration = 0;
+                    sendControlContainer.classList.remove('flashing');
+                    updateGuardianState('listening');
+                }
+                
+                // Extend button - keep listening, disable auto-send for this turn
+                extendBtn.addEventListener('click', () => {
+                    console.log('[UI] Extend clicked - entering manual send mode');
+                    manualSendMode = true; // Disable auto-send
+                    clearSilencePending();
+                    updateGuardianState('listening');
+                    if (audioGate) {
+                        audioGate.disableAutoSend(); // Disable silence timeout completely
+                    }
+                });
+                
+                // Send button - force flush and send whatever audio is currently buffered
+                sendBtn.addEventListener('click', () => {
+                    console.log('[UI] Send clicked - force flushing current audio');
+                    manualSendMode = false; // Re-enable auto-send for next turn
+                    clearSilencePending();
+                    
+                    // If we have pending audio from silence detection, use that
+                    if (pendingAudio) {
+                        const audio = pendingAudio;
+                        const duration = pendingDuration;
+                        sendAudioToServer(audio, duration);
+                    } 
+                    // Otherwise force flush whatever is in the audio gate buffer
+                    else if (audioGate) {
+                        audioGate.forceFlush();
                     }
                 });
 
@@ -1002,8 +2022,12 @@
             
             ws.onopen = () => {
                 console.log('WebSocket connected');
-                console.log('[WS] Sending init with sessionId:', sessionId);
-                ws.send(JSON.stringify({ type: 'init', sessionId: sessionId }));
+                console.log('[WS] Sending init with sessionId:', sessionId, 'responseLength:', responseLength);
+                ws.send(JSON.stringify({ 
+                    type: 'init', 
+                    sessionId: sessionId,
+                    responseLength: responseLength 
+                }));
             };
             
             ws.onmessage = async (event) => {
@@ -1034,6 +2058,8 @@
                         conversationHistory.push({ role: 'assistant', text: data.text });
                         // Trigger summary update after each AI response
                         updateSummary();
+                        // Reset manual mode for next turn
+                        manualSendMode = false;
                         break;
                         
                     case 'audio_chunk':
@@ -1141,6 +2167,29 @@
             `;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
+            
+            // Persist turn to database (fire-and-forget)
+            saveTurnToDatabase(role, text);
+        }
+        
+        // Save conversation turn to backend database
+        function saveTurnToDatabase(role, content) {
+            try {
+                fetch('/api/save-turn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId: sessionId,
+                        role: role,
+                        content: content,
+                        metadata: {
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                }).catch(err => console.warn('Failed to save turn:', err));
+            } catch (e) {
+                console.warn('Turn save error:', e);
+            }
         }
         
 
@@ -1265,6 +2314,20 @@
                 // Update summary content with formatted HTML
                 summaryContent.innerHTML = result.summaryHtml;
                 
+                // Save key takeaways to database
+                try {
+                    fetch('/api/save-turn', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sessionId: sessionId,
+                            role: 'system',
+                            content: `[KEY_TAKEAWAYS_UPDATE] ${result.summaryHtml}`,
+                            metadata: { type: 'key_takeaways' }
+                        })
+                    }).catch(() => {});
+                } catch (e) {}
+                
                 // Show toggle button and summary panel after first successful summary
                 document.getElementById('summary-toggle-panel').style.display = 'block';
                 summaryPanel.classList.add('active');
@@ -1296,8 +2359,221 @@
         }
         
         function printSummary() {
-            window.print();
+            const summaryContent = document.getElementById('summary-content');
+            if (!summaryContent || !summaryContent.innerHTML.trim()) {
+                alert('No Key Takeaways to print yet. Generate a summary first.');
+                return;
+            }
+            
+            // Create a new window for printing just the takeaways
+            const printWindow = window.open('', '_blank');
+            const orgName = organizationName || 'Coaching Session';
+            const dateStr = new Date().toLocaleDateString('en-GB', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Key Takeaways - ${orgName}</title>
+                    <style>
+                        @page {
+                            margin: 2cm;
+                        }
+                        body {
+                            font-family: 'Segoe UI', Arial, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            max-width: 800px;
+                            margin: 0 auto;
+                            padding: 20px;
+                        }
+                        .header {
+                            text-align: center;
+                            border-bottom: 2px solid #4CAF50;
+                            padding-bottom: 20px;
+                            margin-bottom: 30px;
+                        }
+                        .header h1 {
+                            color: #4CAF50;
+                            margin: 0 0 10px 0;
+                            font-size: 24px;
+                        }
+                        .header .org-name {
+                            font-size: 18px;
+                            color: #666;
+                            margin: 5px 0;
+                        }
+                        .header .date {
+                            font-size: 14px;
+                            color: #888;
+                        }
+                        .content {
+                            font-size: 14px;
+                        }
+                        .content h2, .content h3 {
+                            color: #2c3e50;
+                            margin-top: 25px;
+                            margin-bottom: 10px;
+                        }
+                        .content h2 { font-size: 18px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+                        .content h3 { font-size: 16px; }
+                        .content ul, .content ol {
+                            margin-left: 20px;
+                        }
+                        .content li {
+                            margin-bottom: 8px;
+                        }
+                        .content blockquote {
+                            border-left: 3px solid #4CAF50;
+                            margin: 15px 0;
+                            padding: 10px 20px;
+                            background: #f9f9f9;
+                            font-style: italic;
+                        }
+                        .content strong {
+                            color: #2c3e50;
+                        }
+                        .footer {
+                            margin-top: 40px;
+                            padding-top: 20px;
+                            border-top: 1px solid #eee;
+                            text-align: center;
+                            font-size: 12px;
+                            color: #888;
+                        }
+                        @media print {
+                            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>📋 Key Takeaways</h1>
+                        <div class="org-name">${orgName}</div>
+                        <div class="date">${dateStr}</div>
+                    </div>
+                    <div class="content">
+                        ${summaryContent.innerHTML}
+                    </div>
+                    <div class="footer">
+                        Generated by Kea Academic Coach | Powered by Axiom Intelligence
+                    </div>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            
+            // Wait for content to load then print
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
+            
+            // Hide modal if open
+            hideReportModal();
         }
+        
+        // Report Modal Functions
+        function showReportOptions() {
+            const modal = document.getElementById('report-modal');
+            const emailDisplay = document.getElementById('report-email-display');
+            
+            // Show the user's email
+            emailDisplay.textContent = userEmail || 'your registered email';
+            
+            // Reset status
+            const status = document.getElementById('report-status');
+            status.style.display = 'none';
+            
+            modal.classList.add('active');
+        }
+        
+        function hideReportModal() {
+            document.getElementById('report-modal').classList.remove('active');
+        }
+        
+        async function emailReport() {
+            if (!userEmail) {
+                alert('No email address registered. Please restart and enter your email.');
+                return;
+            }
+            
+            const status = document.getElementById('report-status');
+            const statusIcon = status.querySelector('.report-status-icon');
+            const statusText = status.querySelector('.report-status-text');
+            
+            // Show sending status
+            status.style.display = 'flex';
+            status.className = 'report-status';
+            statusIcon.textContent = '⏳';
+            statusText.textContent = 'Sending report to ' + userEmail + '...';
+            
+            try {
+                // Get key takeaways
+                const summaryContent = document.getElementById('summary-content');
+                const keyTakeaways = summaryContent ? summaryContent.innerHTML : '';
+                
+                // Build session data
+                const sessionData = {
+                    userName: userName || 'Student',
+                    userEmail: userEmail,
+                    assessmentTitle: organizationName || 'Coaching Session',
+                    keyTakeaways: keyTakeaways,
+                    createdAt: sessionStartTime,
+                    endedAt: new Date().toISOString(),
+                    sessionStats: {
+                        totalTurns: conversationHistory.length,
+                        userTurns: conversationHistory.filter(m => m.role === 'user').length,
+                        assistantTurns: conversationHistory.filter(m => m.role === 'assistant').length,
+                        durationMinutes: sessionStartTime ? 
+                            Math.round((Date.now() - new Date(sessionStartTime).getTime()) / 60000) : 'N/A'
+                    }
+                };
+                
+                const response = await fetch('/api/send-report-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId: sessionId,
+                        toEmail: userEmail,
+                        sessionData: sessionData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    status.className = 'report-status success';
+                    statusIcon.textContent = '✅';
+                    statusText.textContent = 'Report sent successfully! Check your inbox.';
+                    
+                    // Auto-close modal after success
+                    setTimeout(() => {
+                        hideReportModal();
+                    }, 2500);
+                } else {
+                    status.className = 'report-status error';
+                    statusIcon.textContent = '❌';
+                    statusText.textContent = 'Failed to send: ' + (result.error || 'Unknown error');
+                }
+            } catch (error) {
+                status.className = 'report-status error';
+                statusIcon.textContent = '❌';
+                statusText.textContent = 'Network error. Please try again.';
+                console.error('Email send error:', error);
+            }
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('report-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideReportModal();
+            }
+        });
         
         // Store organization name when context loads
         const originalWsOnMessage = ws?.onmessage;
@@ -1317,8 +2593,210 @@
             };
         }
         
+        // Track session start time
+        let sessionStartTime = new Date().toISOString();
+        
         // Also capture organization from upload result
         const originalUploadHandler = fileInput.onchange;
+    </script>
+    
+    <!-- Upload FAB (Floating Action Button) -->
+    <button id="upload-fab" class="upload-fab" title="Upload additional document">📎</button>
+    
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="upload-modal">
+        <div class="upload-modal-content">
+            <h3>📎 Upload Additional Document</h3>
+            <p style="color: #aaa; font-size: 14px; margin-top: -10px;">
+                Upload academic papers, reports, or other documents to enhance the coaching context.
+            </p>
+            
+            <label>Select Document *</label>
+            <input type="file" id="mid-session-file-input" accept=".pdf,.docx,.txt" />
+            <label for="mid-session-file-input" class="file-select-btn" id="file-select-label">
+                📁 Choose File (PDF, DOCX, or TXT)
+            </label>
+            
+            <label style="margin-top: 20px;">
+                Context / Instructions (Optional)
+                <span style="color: #666; font-size: 12px; font-weight: normal;">
+                    - Help guide the AI's analysis
+                </span>
+            </label>
+            <textarea 
+                id="upload-description" 
+                placeholder="Example: 'This is the peer-reviewed paper I'm critiquing in my assignment. Focus on methodology gaps and alternative approaches.' or 'Compare this report's recommendations to the strategies I'm proposing.'"
+            ></textarea>
+            
+            <div class="upload-modal-actions">
+                <button class="cancel-btn" onclick="closeMidSessionUpload()">Cancel</button>
+                <button class="submit-btn" id="submit-upload-btn" onclick="submitMidSessionUpload()" disabled>
+                    Upload & Parse
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Mid-session upload functionality
+        const uploadFab = document.getElementById('upload-fab');
+        const uploadModal = document.getElementById('upload-modal');
+        const midSessionFileInput = document.getElementById('mid-session-file-input');
+        const fileSelectLabel = document.getElementById('file-select-label');
+        const uploadDescription = document.getElementById('upload-description');
+        const submitUploadBtn = document.getElementById('submit-upload-btn');
+        
+        let selectedFile = null;
+        let isPausedForUpload = false;
+        let audioStreamBeforePause = null;
+        
+        // Show FAB when session starts
+        function showUploadButton() {
+            uploadFab.classList.add('visible');
+        }
+        
+        // Pause audio recording (keep state, stop listening to prevent background noise)
+        function pauseForUpload() {
+            if (isRecording && audioWorkletNode && !isPausedForUpload) {
+                console.log('⏸️ [UPLOAD] Pausing audio recording for upload...');
+                isPausedForUpload = true;
+                
+                // Disconnect audio worklet to stop sending audio chunks
+                audioWorkletNode.disconnect();
+                
+                // Update UI to show paused state
+                updateGuardianState('silent');
+                statusText.innerText = "Paused for upload";
+                
+                console.log('⏸️ [UPLOAD] Audio paused - background noise will not be captured');
+            }
+        }
+        
+        // Resume audio recording after upload
+        function resumeAfterUpload() {
+            if (isPausedForUpload && isRecording) {
+                console.log('▶️ [UPLOAD] Resuming audio recording...');
+                
+                // Reconnect audio worklet
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                audioWorkletNode = new AudioWorkletNode(audioContext, 'audio-processor');
+                
+                // Reconnect the audio graph
+                source.connect(audioWorkletNode);
+                audioWorkletNode.connect(audioContext.destination);
+                
+                // Restore audio chunk handler
+                audioWorkletNode.port.onmessage = (event) => {
+                    if (isRecording && !isSystemSpeaking && ws && ws.readyState === WebSocket.OPEN && audioGate) {
+                        const samples = event.data.samples;
+                        const timestamp = event.data.timestamp;
+                        audioGate.processChunk(samples);
+                    }
+                };
+                
+                isPausedForUpload = false;
+                updateGuardianState('listening');
+                statusText.innerText = "Listening...";
+                
+                console.log('▶️ [UPLOAD] Audio resumed - ready to listen');
+            }
+        }
+        
+        // Open upload modal and pause audio
+        uploadFab.addEventListener('click', () => {
+            pauseForUpload();
+            uploadModal.classList.add('active');
+        });
+        
+        // Close modal and resume audio
+        function closeMidSessionUpload() {
+            uploadModal.classList.remove('active');
+            selectedFile = null;
+            midSessionFileInput.value = '';
+            uploadDescription.value = '';
+            fileSelectLabel.textContent = '📁 Choose File (PDF, DOCX, or TXT)';
+            fileSelectLabel.classList.remove('has-file');
+            submitUploadBtn.disabled = true;
+            
+            // Resume audio after a short delay to ensure modal is fully closed
+            setTimeout(() => {
+                resumeAfterUpload();
+            }, 100);
+        }
+        
+        // File selection
+        midSessionFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                selectedFile = file;
+                fileSelectLabel.textContent = `✅ ${file.name}`;
+                fileSelectLabel.classList.add('has-file');
+                submitUploadBtn.disabled = false;
+            }
+        });
+        
+        // Submit upload
+        async function submitMidSessionUpload() {
+            if (!selectedFile) return;
+            
+            submitUploadBtn.disabled = true;
+            submitUploadBtn.textContent = 'Parsing...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('sessionId', sessionId);
+                formData.append('description', uploadDescription.value.trim());
+                
+                const response = await fetch('/api/upload-during-session', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ Document uploaded and parsed:', result);
+                    alert(`✅ Document uploaded successfully!\\n\\nFile: ${result.filename}\\nWords: ${result.wordCount.toLocaleString()}\\nTotal Documents: ${result.totalDocuments}\\n\\nThe AI now has access to this document for the rest of the conversation.`);
+                    closeMidSessionUpload();
+                    
+                    // Reload coaching context in active session
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ 
+                            type: 'reload_context', 
+                            sessionId: sessionId 
+                        }));
+                    }
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+                
+            } catch (error) {
+                console.error('❌ Upload error:', error);
+                alert(`❌ Upload failed: ${error.message}`);
+                submitUploadBtn.disabled = false;
+                submitUploadBtn.textContent = 'Upload & Parse';
+            }
+        }
+        
+        // Show upload button when session voice section becomes visible
+        // (voiceSection already declared at top of script)
+        if (voiceSection) {
+            const uploadObserver = new MutationObserver(() => {
+                if (voiceSection.classList.contains('active')) {
+                    showUploadButton();
+                    uploadObserver.disconnect();
+                }
+            });
+            uploadObserver.observe(voiceSection, { attributes: true, attributeFilter: ['class'] });
+        }
+        
+        // Also show immediately if already active
+        setTimeout(() => {
+            if (voiceSection && voiceSection.classList.contains('active')) {
+                showUploadButton();
+            }
+        }, 1000);
     </script>
 </body>
 </html>
