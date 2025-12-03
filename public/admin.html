@@ -821,6 +821,8 @@
                     <div class="session-detail">
                         <h3>📋 Session Info</h3>
                         <pre>${JSON.stringify({
+                            student: data.session?.user?.name || data.session?.user_name || 'Unknown',
+                            email: data.session?.user?.email || data.session?.user_email || 'Not provided',
                             status: data.session?.status,
                             started: data.session?.started_at,
                             ended: data.session?.ended_at,
