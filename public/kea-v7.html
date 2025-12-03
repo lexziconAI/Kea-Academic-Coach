@@ -192,6 +192,41 @@
             cursor: wait;
         }
         
+        /* Initializing state - first turn loading */
+        .mic-button.initializing {
+            background: white;
+            box-shadow: 0 0 40px rgba(52, 152, 219, 0.8);
+            animation: initializing-pulse 1.5s ease-in-out infinite;
+            cursor: wait;
+        }
+        
+        @keyframes initializing-pulse {
+            0%, 100% { 
+                box-shadow: 0 0 30px rgba(52, 152, 219, 0.5);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 50px rgba(52, 152, 219, 1);
+                transform: scale(1.02);
+            }
+        }
+        
+        /* Hourglass spinner for initializing */
+        .initializing-spinner {
+            display: inline-block;
+            animation: hourglass-spin 1.5s ease-in-out infinite;
+            font-size: 2em;
+            margin-right: 8px;
+        }
+        
+        @keyframes hourglass-spin {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(180deg); }
+            50% { transform: rotate(180deg); }
+            75% { transform: rotate(360deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         /* Send Control Buttons - Always visible, flash on silence detection */
         .send-control-container {
             display: flex;
@@ -1746,7 +1781,7 @@
             if (!micBtn) return;
             
             // Remove all state classes
-            micBtn.classList.remove('silence-pending', 'processing');
+            micBtn.classList.remove('silence-pending', 'processing', 'initializing');
             
             switch(state) {
                 case 'silence-pending':
@@ -1757,6 +1792,10 @@
                     micBtn.classList.add('processing');
                     break;
                     
+                case 'initializing':
+                    micBtn.classList.add('initializing');
+                    break;
+                    
                 // Other states (silence, idle, listening, speaking) are handled by updateState()
             }
         }
@@ -1764,12 +1803,25 @@
         function updateState(state) {
             lightListening.classList.remove('active');
             lightSpeaking.classList.remove('active');
-            micBtn.classList.remove('active', 'speaking', 'silence-pending', 'processing');
+            micBtn.classList.remove('active', 'speaking', 'silence-pending', 'processing', 'initializing');
             micBtn.innerHTML = '<img src="transparent/set1_silent.png" alt="Kea" style="width: 120px; height: 120px;" />';
             
-            if (state === 'listening') {
+            if (state === 'initializing') {
+                // First turn - system is loading coaching context
+                stateLabel.innerHTML = '<span class="initializing-spinner">⏳</span> Initializing...';
+                stateLabel.style.color = "var(--kea-blue)";
+                micBtn.classList.add('initializing');
+                micBtn.innerHTML = '<img src="transparent/set1_silent.png" alt="Kea Loading" style="width: 120px; height: 120px; opacity: 0.7;" />';
+                isSystemSpeaking = true; // Prevent audio capture during init
+                
+                // Mute microphone during initialization
+                if (audioWorkletNode) {
+                    audioWorkletNode.port.postMessage({ type: 'mute', muted: true });
+                }
+            }
+            else if (state === 'listening') {
                 lightListening.classList.add('active');
-                stateLabel.innerText = "Listening...";
+                stateLabel.innerText = "🎤 Listening... Speak now!";
                 stateLabel.style.color = "var(--kea-green)";
                 micBtn.classList.add('active');
                 micBtn.innerHTML = '<img src="transparent/set1_listening.png" alt="Kea Listening" style="width: 120px; height: 120px;" />';
@@ -1908,8 +1960,17 @@
                 
                 function sendAudioToServer(audio, duration) {
                     if (ws && ws.readyState === WebSocket.OPEN && !isSystemSpeaking) {
-                        // Show processing state
-                        updateGuardianState('processing');
+                        // Check if this is the first turn (no messages in chat yet)
+                        const isFirstTurn = chatBox.querySelectorAll('.chat-message').length === 0;
+                        
+                        if (isFirstTurn) {
+                            // Show initializing state for first turn (loading coaching context)
+                            updateState('initializing');
+                            console.log('[GATE] First turn - showing initializing state');
+                        } else {
+                            // Show processing state for subsequent turns
+                            updateGuardianState('processing');
+                        }
                         sendControlContainer.classList.remove('flashing');
                         
                         // Convert Int16 to Float32 for server compatibility
