@@ -187,13 +187,28 @@ async function handleRequest(req, res) {
   try {
     // Health check
     if (pathname === '/health') {
+      // Get DB stats for health check
+      let dbStats = { users: 0, sessions: 0, dbPath: 'unknown' };
+      try {
+        const users = sessionDb.getAllUsers();
+        const sessions = sessionDb.getAllSessions();
+        dbStats = { 
+          users: users.length, 
+          sessions: sessions.length,
+          dbPath: process.env.NODE_ENV === 'production' ? 'render-disk' : 'local'
+        };
+      } catch (e) {
+        dbStats.error = e.message;
+      }
+      
       res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         status: 'ok',
         app: 'Kea Academic Coach',
         port: PORT,
         openai: !!OPENAI_API_KEY,
-        groq: !!GROQ_API_KEY
+        groq: !!GROQ_API_KEY,
+        database: dbStats
       }));
       return;
     }
