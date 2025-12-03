@@ -48,6 +48,13 @@ class AudioGateClient {
     processChunk(samples) {
         const energy = this.calculateEnergy(samples);
         
+        // Debug: Log first few chunks to verify audio is flowing
+        if (!this._chunkCount) this._chunkCount = 0;
+        this._chunkCount++;
+        if (this._chunkCount <= 5 || this._chunkCount % 100 === 0) {
+            console.log(`[GATE] Chunk ${this._chunkCount}: energy=${energy.toFixed(6)}, noise=${this.noiseFloor.toFixed(6)}`);
+        }
+        
         // GPT 5.1 ADDITION: Update adaptive noise floor during silence
         if (!this.isSpeaking) {
             // Exponential moving average of noise floor
@@ -67,10 +74,17 @@ class AudioGateClient {
             if (!this.isSpeaking) {
                 this.isSpeaking = true;
                 this.speechStartTime = Date.now();
+                console.log(`[GATE] 🎤 SPEECH START detected! energy=${energy.toFixed(6)}, dB above noise=${dbAboveNoise.toFixed(1)}`);
                 this.onSpeechStart();
             }
             
             this.audioBuffer.push(samples);
+            
+            // Log periodically during speech
+            if (this.audioBuffer.length % 20 === 0) {
+                const duration = Date.now() - this.speechStartTime;
+                console.log(`[GATE] 🎤 Speech continuing: ${duration}ms, ${this.audioBuffer.length} chunks`);
+            }
             
             // Clear silence timer
             if (this.silenceTimer) {
@@ -244,7 +258,7 @@ class AudioGateClient {
             const duration = Date.now() - this.speechStartTime;
             const combinedAudio = this.combineBuffers(this.audioBuffer);
             
-            console.log(`[GATE] Force flushing ${duration}ms of audio`);
+            console.log(`[GATE] Force flushing ${duration}ms of audio (${this.audioBuffer.length} chunks)`);
             this.onSpeechComplete(combinedAudio, duration);
             
             // Reset state
@@ -252,7 +266,10 @@ class AudioGateClient {
             this.speechStartTime = null;
             this.isSpeaking = false;
         } else {
-            console.log('[GATE] No audio to flush');
+            console.log('[GATE] No audio to flush - buffer is empty');
+            console.log('[GATE] speechStartTime:', this.speechStartTime, 'buffer length:', this.audioBuffer.length);
+            console.log('[GATE] isSpeaking:', this.isSpeaking);
+            alert('No audio detected. Please speak into the microphone first.');
         }
     }
     

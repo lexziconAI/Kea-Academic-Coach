@@ -1990,14 +1990,9 @@
                     // Otherwise force flush whatever is in the audio gate buffer
                     else {
                         console.log('[UI] Force flushing audio gate buffer');
-                        const flushedAudio = audioGate.forceFlush();
-                        if (flushedAudio && flushedAudio.audio && flushedAudio.audio.length > 0) {
-                            console.log('[UI] Flushed', flushedAudio.duration, 'ms of audio');
-                            sendAudioToServer(flushedAudio.audio, flushedAudio.duration);
-                        } else {
-                            console.log('[UI] No audio to send - buffer is empty');
-                            alert('No audio detected. Please speak into the microphone first.');
-                        }
+                        // forceFlush() will call onSpeechComplete callback if there's audio
+                        // If buffer is empty, it will log and do nothing
+                        audioGate.forceFlush();
                     }
                 });
 
