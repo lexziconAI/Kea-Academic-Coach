@@ -1246,22 +1246,10 @@ async function handleRequest(req, res) {
       return;
     }
 
-    // Serve frontend
+    // Serve frontend - Redirect to V7 (latest)
     if (pathname === '/' || pathname === '/index.html') {
-      try {
-        const html = await fs.readFile(path.join(__dirname, 'public', 'kea-v4.html'), 'utf8');
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(html);
-      } catch {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(`<!doctype html><html><head><title>Kea V4 - Academic Coach</title></head><body>
-          <h1>🥝 Kea V4 - Academic Coach</h1>
-          <p>Server running on port ${PORT}</p>
-          <p>WebSocket relay at ws://localhost:${PORT}/relay</p>
-          <p><a href="/v4">Open V4 Demo (recommended)</a></p>
-          <p><a href="/realtime">Open Realtime Demo (legacy)</a></p>
-        </body></html>`);
-      }
+      res.writeHead(302, { 'Location': '/v7' });
+      res.end();
       return;
     }
 
