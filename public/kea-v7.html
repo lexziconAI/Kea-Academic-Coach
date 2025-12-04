@@ -595,6 +595,15 @@
             color: #ccc;
         }
         
+        .summary-btn.end-session {
+            background: linear-gradient(135deg, #c62828, #b71c1c);
+            color: white;
+        }
+        
+        .summary-btn.end-session:hover {
+            background: linear-gradient(135deg, #d32f2f, #c62828);
+        }
+        
         .summary-content {
             color: #e0e0e0;
             line-height: 1.6;
@@ -1346,6 +1355,7 @@
                 <div class="summary-actions">
                     <button class="summary-btn secondary" onclick="toggleSummary()">Hide</button>
                     <button class="summary-btn" onclick="showReportOptions()">📄 View Report</button>
+                    <button class="summary-btn end-session" onclick="endSession()">🛑 End Session</button>
                 </div>
             </div>
             <div class="summary-content" id="summary-content">
@@ -2645,13 +2655,44 @@
             hideReportModal();
         }
         
-        // Report Modal Functions
-        function showReportOptions() {
-            // Stop recording if active (end the voice session)
+        // End Session Function - Stops recording and shows completion message
+        function endSession() {
+            // Stop recording if active
             if (isRecording) {
                 stopRecording();
             }
             
+            // Update UI to show session ended
+            stateLabel.innerHTML = '✅ Session Ended';
+            stateLabel.style.color = '#4CAF50';
+            
+            // Hide mic button and show ended state
+            micBtn.innerHTML = '<img src="transparent/set1_silent.png" alt="Kea" style="width: 120px; height: 120px; opacity: 0.5;" />';
+            micBtn.style.pointerEvents = 'none';
+            
+            // Add a message to the chat
+            addMessage('assistant', "Thank you for this coaching session! Your conversation has been saved. You can view or email your report using the 'View Report' button above. Feel free to close this window when you're ready.");
+            
+            // Send session end to server
+            const finalData = {
+                sessionId: sessionId,
+                action: 'end_session',
+                reason: 'user_ended',
+                keyTakeaways: document.getElementById('summary-content')?.innerHTML || null,
+                conversationHistory: conversationHistory
+            };
+            
+            fetch('/api/end-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(finalData)
+            }).catch(err => console.error('Error ending session:', err));
+            
+            console.log('🛑 Session ended by user');
+        }
+        
+        // Report Modal Functions
+        function showReportOptions() {
             const modal = document.getElementById('report-modal');
             const emailDisplay = document.getElementById('report-email-display');
             
