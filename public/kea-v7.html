@@ -1426,6 +1426,10 @@
             userId: null
         };
         
+        // Global user info for report functions
+        let userName = null;
+        let userEmail = null;
+        
         // Conversation History for Summary
         let conversationHistory = [];
         let summaryUpdatePending = false;
@@ -1504,6 +1508,10 @@
             
             userData.name = userNameInput.value.trim();
             userData.email = userEmailInput.value.trim();
+            
+            // Set global user info for report functions
+            userName = userData.name;
+            userEmail = userData.email;
             
             continueBtn.textContent = 'Setting up...';
             continueBtn.disabled = true;
@@ -2639,6 +2647,11 @@
         
         // Report Modal Functions
         function showReportOptions() {
+            // Stop recording if active (end the voice session)
+            if (isRecording) {
+                stopRecording();
+            }
+            
             const modal = document.getElementById('report-modal');
             const emailDisplay = document.getElementById('report-email-display');
             
