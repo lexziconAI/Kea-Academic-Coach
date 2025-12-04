@@ -337,6 +337,46 @@ async function handleRequest(req, res) {
           // Mark session as ended
           sessionDb.endSession(sessionId, reason === 'window_close' ? 'completed' : 'completed');
           
+          // ═══════════════════════════════════════════════════════════════════════════
+          // AUTO-SEND REPORT TO INSTRUCTOR (Varun)
+          // ═══════════════════════════════════════════════════════════════════════════
+          const INSTRUCTOR_EMAIL = 'vbha006@aucklanduni.ac.nz';
+          
+          try {
+            // Get session data for the email
+            const session = sessionDb.getSession(sessionId);
+            const turns = sessionDb.getConversationHistory(sessionId);
+            
+            if (session) {
+              const reportData = {
+                userName: session.user_name || 'Student',
+                userEmail: session.user_email || 'Not provided',
+                assessmentTitle: session.assessment_title || 'Coaching Session',
+                keyTakeaways: session.key_takeaways_html || keyTakeaways || '',
+                createdAt: session.created_at,
+                endedAt: new Date().toISOString(),
+                sessionStats: {
+                  totalTurns: turns.length,
+                  userTurns: turns.filter(t => t.role === 'user').length,
+                  assistantTurns: turns.filter(t => t.role === 'assistant').length,
+                  durationMinutes: session.created_at ? 
+                    Math.round((new Date() - new Date(session.created_at)) / 60000) : 'N/A'
+                }
+              };
+              
+              // Send to instructor automatically
+              const emailResult = await emailService.sendReportEmail(INSTRUCTOR_EMAIL, reportData);
+              if (emailResult.success) {
+                console.log(`📧 AUTO: Report sent to instructor (${INSTRUCTOR_EMAIL}) for session ${sessionId}`);
+              } else {
+                console.error(`📧 AUTO: Failed to send report to instructor: ${emailResult.error}`);
+              }
+            }
+          } catch (emailErr) {
+            // Don't fail the endpoint if email fails - just log it
+            console.error(`📧 AUTO: Error sending instructor email: ${emailErr.message}`);
+          }
+          
           res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             success: true,
