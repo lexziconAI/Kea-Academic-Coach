@@ -53,16 +53,20 @@ function generateEmailReport(sessionData) {
         endedAt
     } = sessionData;
 
-    // Format dates
-    const startDate = createdAt ? new Date(createdAt).toLocaleString('en-NZ', { 
-        dateStyle: 'full', 
-        timeStyle: 'short' 
-    }) : 'N/A';
+    // Format dates in NZ timezone explicitly
+    const nzOptions = { 
+        timeZone: 'Pacific/Auckland',
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    };
     
-    const endDate = endedAt ? new Date(endedAt).toLocaleString('en-NZ', { 
-        dateStyle: 'full', 
-        timeStyle: 'short' 
-    }) : 'N/A';
+    const startDate = createdAt ? new Date(createdAt).toLocaleString('en-NZ', nzOptions) : 'N/A';
+    const endDate = endedAt ? new Date(endedAt).toLocaleString('en-NZ', nzOptions) : 'N/A';
 
     // Session stats
     const totalTurns = sessionStats.totalTurns || 0;
@@ -243,15 +247,23 @@ function generateEmailReport(sessionData) {
             <div class="session-info">
                 <h3>📋 Session Details</h3>
                 <div class="info-row">
+                    <span class="info-label">Student Name</span>
+                    <span class="info-value">${userName}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Student Email</span>
+                    <span class="info-value">${userEmail || 'Not provided'}</span>
+                </div>
+                <div class="info-row">
                     <span class="info-label">Assessment</span>
                     <span class="info-value">${assessmentTitle}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Started</span>
+                    <span class="info-label">Started (NZ Time)</span>
                     <span class="info-value">${startDate}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Completed</span>
+                    <span class="info-label">Completed (NZ Time)</span>
                     <span class="info-value">${endDate}</span>
                 </div>
                 <div class="info-row">
@@ -319,6 +331,10 @@ async function sendReportEmail(toEmail, sessionData) {
 
     const htmlContent = generateEmailReport(sessionData);
     const logoBase64 = getLogoBase64();
+    
+    // Include student name in subject line
+    const studentName = sessionData.userName || 'Student';
+    const assessmentTitle = sessionData.assessmentTitle || 'Session Summary';
 
     const msg = {
         to: toEmail,
@@ -326,7 +342,7 @@ async function sendReportEmail(toEmail, sessionData) {
             email: SENDGRID_FROM_EMAIL,
             name: SENDGRID_FROM_NAME
         },
-        subject: `Your Kea Coaching Session Report - ${sessionData.assessmentTitle || 'Session Summary'}`,
+        subject: `Kea Report: ${studentName} - ${assessmentTitle}`,
         html: htmlContent,
         attachments: logoBase64 ? [{
             content: logoBase64,
