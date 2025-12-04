@@ -835,10 +835,24 @@ function createRelayV7(server, wsPath = '/relay-v7', coachingContexts = null) {
                                 success: true,
                                 organization: contextData.analysis?.organization?.name || 'Unknown'
                             }));
+                        } else {
+                            // Context data exists but is empty - still ready to chat
+                            console.log(`⚠️ [${sessionId}] Context data exists but empty - sending ready signal`);
+                            ws.send(JSON.stringify({ 
+                                type: 'coaching_context_loaded', 
+                                success: true,
+                                organization: 'No document uploaded'
+                            }));
                         }
                     } else {
                         console.log(`⚠️ [${sessionId}] No coaching context found for client session ${message.sessionId}`);
                         console.log(`⚠️ [${sessionId}] This session will start WITHOUT uploaded document context`);
+                        // ALWAYS send coaching_context_loaded so client can transition to listening
+                        ws.send(JSON.stringify({ 
+                            type: 'coaching_context_loaded', 
+                            success: true,
+                            organization: 'No document uploaded - general coaching mode'
+                        }));
                     }
                 }
                 
