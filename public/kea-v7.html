@@ -1727,14 +1727,18 @@
             responseLengthPanel.style.display = 'block';
         }
         
-        function startVoiceSession() {
+        // Track if coaching context has been loaded for this session
+        let coachingContextLoaded = false;
+        
+        async function startVoiceSession() {
             responseLengthPanel.style.display = 'none';
             voiceSection.classList.add('active');
             
-            // If we have an opening question, show it
-            if (openingQuestion) {
-                addMessage('assistant', openingQuestion);
-            }
+            // Reset context loaded flag for new session
+            coachingContextLoaded = false;
+            
+            // Auto-start recording immediately (shows initializing while loading context)
+            await startRecording();
         }
         
         // ═══════════════════════════════════════════════════════════════════════════
@@ -1889,6 +1893,13 @@
                 // Show upload button when recording starts
                 showUploadButton();
                 
+                // ═══════════════════════════════════════════════════════════════════════════
+                // IMMEDIATE INITIALIZING STATE - Show hourglass while loading context
+                // ═══════════════════════════════════════════════════════════════════════════
+                updateState('initializing');
+                statusText.innerText = "Connecting...";
+                statusDot.className = "status-dot connecting";
+                
                 if (!audioContext) {
                     // Use default sample rate (usually 44.1k or 48k) for high quality output
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -1979,25 +1990,9 @@
                 
                 function sendAudioToServer(audio, duration) {
                     if (ws && ws.readyState === WebSocket.OPEN && !isSystemSpeaking) {
-                        // Check if this is the first turn (no messages in chat yet)
-                        const isFirstTurn = chatBox.querySelectorAll('.chat-message').length === 0;
-                        
-                        if (isFirstTurn) {
-                            // Show initializing state for first turn (loading coaching context)
-                            updateState('initializing');
-                            console.log('[GATE] First turn - showing initializing state');
-                            
-                            // Set timeout recovery to prevent infinite spinner
-                            clearInitializingTimeout();
-                            initializingTimeout = setTimeout(() => {
-                                console.error('[GATE] Server did not respond in 30s - recovering from initializing state');
-                                updateState('listening');
-                                addMessage('assistant', "I'm having trouble connecting to the AI. Please try speaking again, or check if the server is running.");
-                            }, INIT_TIMEOUT_MS);
-                        } else {
-                            // Show processing state for subsequent turns
-                            updateGuardianState('processing');
-                        }
+                        // Show processing state while waiting for response
+                        updateGuardianState('processing');
+                        console.log('[GATE] Processing speech...');
                         sendControlContainer.classList.remove('flashing');
                         
                         // Convert Int16 to Float32 for server compatibility
@@ -2117,8 +2112,9 @@
                 };
                 
                 isRecording = true;
-                updateState('listening');
-                statusText.innerText = "Connected";
+                // NOTE: We stay in 'initializing' state until coaching_context_loaded arrives
+                // The state transition to 'listening' happens in the WS message handler
+                statusText.innerText = "Loading coaching context...";
                 statusDot.className = "status-dot connected";
                 
             } catch (error) {
@@ -2164,6 +2160,17 @@
                     sessionId: sessionId,
                     responseLength: responseLength 
                 }));
+                
+                // Set timeout to recover if coaching_context_loaded never arrives
+                clearInitializingTimeout();
+                initializingTimeout = setTimeout(() => {
+                    if (!coachingContextLoaded) {
+                        console.error('[WS] coaching_context_loaded not received in 15s - forcing listening state');
+                        coachingContextLoaded = true; // Prevent double-recovery
+                        updateState('listening');
+                        statusText.innerText = "Connected (context load timed out)";
+                    }
+                }, 15000); // 15 second timeout for context loading
             };
             
             ws.onmessage = async (event) => {
@@ -2173,6 +2180,19 @@
                     case 'coaching_context_loaded':
                         console.log('✅ COACHING CONTEXT LOADED INTO GROQ BRAIN!');
                         console.log('   Organization:', data.organization);
+                        coachingContextLoaded = true;
+                        
+                        // Clear the timeout since context loaded successfully
+                        clearInitializingTimeout();
+                        
+                        // Now transition to listening - context is ready
+                        updateState('listening');
+                        statusText.innerText = "Connected";
+                        
+                        // Show opening question if we have one
+                        if (openingQuestion && chatBox.querySelectorAll('.chat-message').length === 0) {
+                            addMessage('assistant', openingQuestion);
+                        }
                         break;
                         
                     case 'state':
