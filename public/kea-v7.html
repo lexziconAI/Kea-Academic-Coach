@@ -1730,6 +1730,17 @@
         // Track if coaching context has been loaded for this session
         let coachingContextLoaded = false;
         
+        // Timeout recovery for initializing state (prevents infinite spinner)
+        let initializingTimeout = null;
+        const INIT_TIMEOUT_MS = 15000; // 15 seconds max wait for context load
+        
+        function clearInitializingTimeout() {
+            if (initializingTimeout) {
+                clearTimeout(initializingTimeout);
+                initializingTimeout = null;
+            }
+        }
+        
         async function startVoiceSession() {
             responseLengthPanel.style.display = 'none';
             voiceSection.classList.add('active');
@@ -1976,17 +1987,6 @@
                         clearSilencePending();
                     }
                 });
-                
-                // Timeout recovery for initializing state (prevents infinite spinner)
-                let initializingTimeout = null;
-                const INIT_TIMEOUT_MS = 30000; // 30 seconds max wait
-                
-                function clearInitializingTimeout() {
-                    if (initializingTimeout) {
-                        clearTimeout(initializingTimeout);
-                        initializingTimeout = null;
-                    }
-                }
                 
                 function sendAudioToServer(audio, duration) {
                     if (ws && ws.readyState === WebSocket.OPEN && !isSystemSpeaking) {
