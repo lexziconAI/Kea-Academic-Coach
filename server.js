@@ -347,20 +347,26 @@ async function handleRequest(req, res) {
             const session = sessionDb.getSession(sessionId);
             const turns = sessionDb.getConversationHistory(sessionId);
             
+            console.log(`📧 AUTO: Session data for ${sessionId}:`, {
+              user_name: session?.user_name,
+              user_email: session?.user_email,
+              organisation_name: session?.organisation_name
+            });
+            
             if (session) {
               const reportData = {
                 userName: session.user_name || 'Student',
                 userEmail: session.user_email || 'Not provided',
-                assessmentTitle: session.assessment_title || 'Coaching Session',
+                assessmentTitle: session.organisation_name || session.document_filename || 'Coaching Session',
                 keyTakeaways: session.key_takeaways_html || keyTakeaways || '',
-                createdAt: session.created_at,
+                createdAt: session.started_at,
                 endedAt: new Date().toISOString(),
                 sessionStats: {
                   totalTurns: turns.length,
                   userTurns: turns.filter(t => t.role === 'user').length,
                   assistantTurns: turns.filter(t => t.role === 'assistant').length,
-                  durationMinutes: session.created_at ? 
-                    Math.round((new Date() - new Date(session.created_at)) / 60000) : 'N/A'
+                  durationMinutes: session.started_at ? 
+                    Math.round((new Date() - new Date(session.started_at)) / 60000) : 'N/A'
                 }
               };
               
@@ -485,17 +491,17 @@ async function handleRequest(req, res) {
             if (session) {
               reportData = {
                 userName: session.user_name || 'Student',
-                userEmail: toEmail,
-                assessmentTitle: session.assessment_title || 'Coaching Session',
+                userEmail: session.user_email || toEmail,
+                assessmentTitle: session.organisation_name || session.document_filename || 'Coaching Session',
                 keyTakeaways: session.key_takeaways_html || '',
-                createdAt: session.created_at,
+                createdAt: session.started_at,
                 endedAt: session.ended_at || new Date().toISOString(),
                 sessionStats: {
                   totalTurns: turns.length,
                   userTurns: turns.filter(t => t.role === 'user').length,
                   assistantTurns: turns.filter(t => t.role === 'assistant').length,
-                  durationMinutes: session.created_at ? 
-                    Math.round((new Date() - new Date(session.created_at)) / 60000) : 'N/A'
+                  durationMinutes: session.started_at ? 
+                    Math.round((new Date() - new Date(session.started_at)) / 60000) : 'N/A'
                 }
               };
             }

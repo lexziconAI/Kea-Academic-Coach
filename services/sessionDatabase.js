@@ -190,7 +190,12 @@ const sessionStatements = {
         UPDATE sessions SET response_length = ? WHERE session_id = ?
     `),
     
-    get: db.prepare('SELECT * FROM sessions WHERE session_id = ?'),
+    get: db.prepare(`
+        SELECT s.*, u.name as user_name, u.email as user_email 
+        FROM sessions s 
+        LEFT JOIN users u ON s.user_id = u.id 
+        WHERE s.session_id = ?
+    `),
     
     getActive: db.prepare(`
         SELECT * FROM sessions WHERE status = 'active' 
